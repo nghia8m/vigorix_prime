@@ -1,0 +1,189 @@
+# ===========================================================================
+# Vigorix Prime — Sveltia CMS configuration
+# ---------------------------------------------------------------------------
+# Sveltia is a drop-in, Decap-compatible CMS. It reads this file at /admin/.
+#
+# BEFORE THIS WORKS YOU MUST (see deploy steps):
+#   1. Push this project to a GitHub repo.
+#   2. Replace the `repo` value below with the real GitHub owner/repo.
+#   3. Deploy the OAuth worker (oauth-worker/) and put its URL in base_url.
+# ===========================================================================
+
+backend:
+  name: github
+  repo: OWNER/vigorixprime-cms
+  branch: main
+  # URL of the deployed auth worker (handles GitHub login).
+  base_url: https://vigorixprime-cms-auth.EXAMPLE.workers.dev
+
+# Where uploaded images are stored in the repo, and how they're referenced
+# in the built site. Astro serves everything in /public at the site root.
+media_folder: "public/images"
+public_folder: "/images"
+
+# Logo shown on the Sveltia CMS login screen.
+logo_url: /favicon.png
+
+collections:
+  # -------------------------------------------------------------------------
+  # ARTICLES — add / edit / delete reviews without touching code
+  # -------------------------------------------------------------------------
+  - name: "articles"
+    label: "Articles (Reviews)"
+    label_singular: "Article"
+    folder: "src/content/articles"
+    create: true
+    delete: true
+    extension: "md"
+    format: "frontmatter"
+    slug: "{{slug}}"
+    summary: "{{title}} — {{category}}"
+    sortable_fields: ["order", "title", "category"]
+    fields:
+      - { name: "title", label: "Title (H1)", widget: "string" }
+      - { name: "metaTitle", label: "Meta Title (SEO, <=70 chars)", widget: "string", pattern: ['^.{1,70}$', "Keep under 70 characters"] }
+      - { name: "metaDescription", label: "Meta Description (SEO, <=165 chars)", widget: "text", pattern: ['^.{1,165}$', "Keep under 165 characters"] }
+      - name: "category"
+        label: "Category"
+        widget: "select"
+        options: ["Supplements", "Performance", "Vitality", "Grooming"]
+      - name: "categoryLink"
+        label: "Category Link"
+        widget: "select"
+        options: ["/supplements", "/performance", "/vitality", "/grooming"]
+        default: "/supplements"
+      - { name: "cardImage", label: "Card / Hero Image", widget: "image", required: false }
+      - { name: "ogImage", label: "Social Share Image (optional)", widget: "image", required: false }
+      - { name: "cardTitle", label: "Short Card Title (optional)", widget: "string", required: false }
+      - { name: "cardSummary", label: "Card Summary (homepage/category card text)", widget: "text" }
+      - { name: "publishedLabel", label: "Published Label", widget: "string", default: "Updated 2025" }
+      - { name: "readTime", label: "Read Time", widget: "string", default: "8 min read" }
+      - { name: "intro", label: "Intro Paragraph", widget: "text" }
+      - { name: "priceNote", label: "Price Note (under table)", widget: "string", default: "*Approximate prices for reference only. Confirm the current price on the retailer's page before buying." }
+      - { name: "order", label: "Order (lower = shown earlier)", widget: "number", value_type: "int", default: 99 }
+      - { name: "draft", label: "Draft (hide from site)", widget: "boolean", default: false }
+      - name: "quickPick"
+        label: "Quick Pick (top recommendation box)"
+        widget: "object"
+        fields:
+          - { name: "name", label: "Product Name (must match a product below)", widget: "string" }
+          - { name: "reason", label: "Why it's the quick pick", widget: "text" }
+      - name: "products"
+        label: "Products (ranked)"
+        label_singular: "Product"
+        widget: "list"
+        summary: "{{fields.award}}: {{fields.name}}"
+        fields:
+          - { name: "name", label: "Product Name", widget: "string" }
+          - { name: "award", label: "Award (e.g. Best Overall)", widget: "string" }
+          - { name: "affiliateUrl", label: "Affiliate Link (paste after approval; leave empty = inert button)", widget: "string", required: false, default: "" }
+          - { name: "price", label: "Price (display, e.g. ~$40)", widget: "string", default: "Check latest" }
+          - { name: "rating", label: "Rating (display, e.g. 4.8 / 5)", widget: "string", required: false, default: "" }
+          - { name: "bestFor", label: "Best For (table cell)", widget: "string", required: false, default: "" }
+          - { name: "image", label: "Product Image (optional)", widget: "image", required: false }
+          - { name: "description", label: "Description", widget: "text" }
+          - { name: "pros", label: "Pros", widget: "list", field: { name: "item", label: "Pro", widget: "string" } }
+          - { name: "cons", label: "Cons", widget: "list", field: { name: "item", label: "Con", widget: "string" } }
+          - { name: "priceValue", label: "Price Value for SEO (number only, e.g. 40)", widget: "string", required: false, default: "" }
+          - { name: "ratingValue", label: "Rating Value for SEO (e.g. 4.8)", widget: "string", required: false, default: "" }
+          - { name: "ratingCount", label: "Rating Count for SEO (e.g. 212)", widget: "string", required: false, default: "" }
+          - { name: "reviewBody", label: "Review Summary for SEO (1-2 sentences)", widget: "text", required: false, default: "" }
+      - name: "faqs"
+        label: "FAQs"
+        widget: "list"
+        required: false
+        summary: "{{fields.q}}"
+        fields:
+          - { name: "q", label: "Question", widget: "string" }
+          - { name: "a", label: "Answer", widget: "text" }
+      - { name: "conclusion", label: "Conclusion", widget: "text" }
+
+  # -------------------------------------------------------------------------
+  # SITE SETTINGS — header, footer, and site-wide verification/analytics code
+  # -------------------------------------------------------------------------
+  - name: "settings"
+    label: "Site Settings"
+    delete: false
+    editor:
+      preview: false
+    files:
+      - name: "site"
+        label: "Header, Footer & Code"
+        file: "src/data/site.json"
+        fields:
+          - { name: "logoPre", label: "Logo — first part", widget: "string" }
+          - { name: "logoAccent", label: "Logo — accent part", widget: "string" }
+          - name: "header"
+            label: "Header Navigation"
+            widget: "object"
+            fields:
+              - name: "nav"
+                label: "Menu Items"
+                widget: "list"
+                summary: "{{fields.label}}"
+                fields:
+                  - { name: "label", label: "Label", widget: "string" }
+                  - { name: "href", label: "Link", widget: "string" }
+          - name: "footer"
+            label: "Footer"
+            widget: "object"
+            fields:
+              - { name: "tagline", label: "Tagline", widget: "text" }
+              - name: "columns"
+                label: "Footer Columns"
+                widget: "list"
+                summary: "{{fields.heading}}"
+                fields:
+                  - { name: "heading", label: "Column Heading", widget: "string" }
+                  - name: "links"
+                    label: "Links"
+                    widget: "list"
+                    summary: "{{fields.label}}"
+                    fields:
+                      - { name: "label", label: "Label", widget: "string" }
+                      - { name: "href", label: "Link", widget: "string" }
+              - { name: "disclosure", label: "Disclosure Line", widget: "text" }
+              - { name: "copyright", label: "Copyright Line", widget: "string" }
+          - name: "hero"
+            label: "Homepage Hero Banner (slideshow)"
+            widget: "object"
+            fields:
+              - name: "slides"
+                label: "Banner Slides (auto-rotate; leave empty for plain navy hero)"
+                widget: "list"
+                required: false
+                summary: "{{fields.image}}"
+                fields:
+                  - { name: "image", label: "Image (JPG/PNG/GIF/animated WebP — 1920x1080)", widget: "image" }
+                  - { name: "alt", label: "Alt text (optional)", widget: "string", required: false, default: "" }
+          - name: "deals"
+            label: "Deals Card (homepage)"
+            widget: "object"
+            fields:
+              - { name: "image", label: "Image", widget: "image", required: false }
+              - { name: "title", label: "Title", widget: "string" }
+              - { name: "text", label: "Description", widget: "text" }
+              - { name: "link", label: "Link (URL or #anchor)", widget: "string" }
+          - name: "code"
+            label: "Site-wide Code"
+            widget: "object"
+            fields:
+              - name: "customHead"
+                label: "Custom Head Code (Awin / Impact verification, analytics)"
+                widget: "code"
+                output_code_only: true
+                default_language: "html"
+                allow_language_selection: false
+                required: false
+              - name: "customBody"
+                label: "Custom Body Code (end of <body>)"
+                widget: "code"
+                output_code_only: true
+                default_language: "html"
+                allow_language_selection: false
+                required: false
+          - name: "contact"
+            label: "Contact Form"
+            widget: "object"
+            fields:
+              - { name: "web3formsKey", label: "Web3Forms Access Key (paste the key from web3forms.com)", widget: "string", required: false }

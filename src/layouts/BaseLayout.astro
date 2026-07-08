@@ -1,0 +1,106 @@
+---
+import Header from "../components/Header.astro";
+import Footer from "../components/Footer.astro";
+import site from "../data/site.json";
+// Global stylesheet imported through the Astro bundler (hashed, single source
+// of truth). This replaces the old <link href="/css/style.css"> approach where
+// a second, hand-edited copy in /public could silently drift out of sync.
+import "../styles/global.css";
+
+const SITE_URL = "https://vigorixprime.com";
+const DEFAULT_OG = `${SITE_URL}/assets/og-default.jpg`;
+
+interface Props {
+  title: string;
+  description: string;
+  path?: string; // path of this page, e.g. "/best-testosterone-booster-supplements"
+  ogType?: string;
+  ogImage?: string; // absolute URL or site-relative path
+  jsonLd?: unknown[]; // extra schema.org blocks (breadcrumb, itemlist, faq...)
+}
+
+const {
+  title,
+  description,
+  path = "/",
+  ogType = "website",
+  ogImage,
+  jsonLd = [],
+} = Astro.props;
+
+const canonical = new URL(path, SITE_URL).href;
+const ogImageUrl = ogImage
+  ? new URL(ogImage, SITE_URL).href
+  : DEFAULT_OG;
+
+// Organization + WebSite is present on every page.
+const baseGraph = {
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "Organization",
+      "@id": `${SITE_URL}/#organization`,
+      name: "Vigorix Prime",
+      url: `${SITE_URL}/`,
+      logo: DEFAULT_OG,
+    },
+    {
+      "@type": "WebSite",
+      "@id": `${SITE_URL}/#website`,
+      name: "Vigorix Prime",
+      url: `${SITE_URL}/`,
+      publisher: { "@id": `${SITE_URL}/#organization` },
+    },
+  ],
+};
+---
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <!-- Favicon -->
+  <link rel="icon" type="image/png" href="/favicon.png" />
+  <link rel="apple-touch-icon" href="/favicon.png" />
+
+  <title>{title}</title>
+  <meta name="description" content={description} />
+
+  <link rel="canonical" href={canonical} />
+
+  <!-- Open Graph -->
+  <meta property="og:type" content={ogType} />
+  <meta property="og:title" content={title} />
+  <meta property="og:description" content={description} />
+  <meta property="og:url" content={canonical} />
+  <meta property="og:image" content={ogImageUrl} />
+  <meta property="og:site_name" content="Vigorix Prime" />
+
+  <!-- Twitter -->
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content={title} />
+  <meta name="twitter:description" content={description} />
+  <meta name="twitter:image" content={ogImageUrl} />
+
+  <!-- Structured data: Organization + WebSite -->
+  <script type="application/ld+json" set:html={JSON.stringify(baseGraph)} />
+  {jsonLd.map((block) => (
+    <script type="application/ld+json" set:html={JSON.stringify(block)} />
+  ))}
+
+  <!-- Custom Head Code (edited in Admin → Site Settings). Used for affiliate
+       network verification meta tags (Awin, Impact) and analytics snippets. -->
+  <Fragment set:html={site.code.customHead} />
+</head>
+<body>
+  <Header />
+  <slot />
+  <Footer />
+
+  <script src="/js/main.js" is:inline></script>
+
+  <!-- Custom Body Code (edited in Admin → Site Settings). -->
+  <Fragment set:html={site.code.customBody} />
+</body>
+</html>

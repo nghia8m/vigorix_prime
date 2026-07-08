@@ -1,0 +1,139 @@
+{
+  "logoPre": "Vigorix",
+  "logoAccent": "Prime",
+  "header": {
+    "nav": [
+      {
+        "label": "Best Picks",
+        "href": "/#best-picks"
+      },
+      {
+        "label": "Supplements",
+        "href": "/supplements"
+      },
+      {
+        "label": "Performance",
+        "href": "/performance"
+      },
+      {
+        "label": "Vitality",
+        "href": "/vitality"
+      },
+      {
+        "label": "Grooming",
+        "href": "/grooming"
+      },
+      {
+        "label": "About",
+        "href": "/about"
+      }
+    ]
+  },
+  "footer": {
+    "tagline": "Independent, research-backed reviews and buying guides for the supplements, performance products and grooming gear that help men live stronger.",
+    "columns": [
+      {
+        "heading": "Categories",
+        "links": [
+          {
+            "label": "Supplements",
+            "href": "/supplements"
+          },
+          {
+            "label": "Performance",
+            "href": "/performance"
+          },
+          {
+            "label": "Vitality",
+            "href": "/vitality"
+          },
+          {
+            "label": "Grooming",
+            "href": "/grooming"
+          }
+        ]
+      },
+      {
+        "heading": "Company",
+        "links": [
+          {
+            "label": "About",
+            "href": "/about"
+          },
+          {
+            "label": "Contact",
+            "href": "/contact"
+          },
+          {
+            "label": "Affiliate Disclosure",
+            "href": "/affiliate-disclosure"
+          },
+          {
+            "label": "Privacy Policy",
+            "href": "/privacy-policy"
+          }
+        ]
+      },
+      {
+        "heading": "Top Guides",
+        "links": [
+          {
+            "label": "Best Testosterone Boosters",
+            "href": "/best-testosterone-booster-supplements"
+          },
+          {
+            "label": "Best Multivitamins for Men",
+            "href": "/best-multivitamins-for-men"
+          },
+          {
+            "label": "Best Pre-Workout",
+            "href": "/best-pre-workout-supplements"
+          },
+          {
+            "label": "Best Creatine",
+            "href": "/best-creatine-monohydrate"
+          },
+          {
+            "label": "Best Hair Loss Treatments",
+            "href": "/best-hair-loss-treatments-for-men"
+          },
+          {
+            "label": "Best Electric Shavers",
+            "href": "/best-electric-shavers-for-men"
+          }
+        ]
+      }
+    ],
+    "disclosure": "VigorixPrime.com is a participant in the Amazon Services LLC Associates Program, an affiliate advertising program designed to provide a means for sites to earn advertising fees by advertising and linking to Amazon.com. Content is for general information only and is not medical advice.",
+    "copyright": "© 2025 VigorixPrime.com. All rights reserved."
+  },
+  "hero": {
+    "slides": [
+      {
+        "image": "/images/hero/athlete-resting-after-workout.jpg",
+        "alt": "Muscular male athlete resting after a weightlifting workout"
+      },
+      {
+        "image": "/images/hero/dumbbell-rack-gym.jpg",
+        "alt": "Row of dumbbells on a rack in a gym"
+      },
+      {
+        "image": "/images/hero/man-tying-running-shoes.jpg",
+        "alt": "Man tying his sneakers before an outdoor workout"
+      }
+    ]
+  },
+  "deals": {
+    "image": "/images/deals.jpg",
+    "title": "Deals & Price Drops",
+    "text": "Our editors track prices across every supplement, performance product and grooming tool we recommend, and flag the best value inside each guide — so you buy when the timing is right. Start with our top-rated picks below.",
+    "link": "/#best-picks"
+  },
+  "code": {
+    "customHead": "",
+    "customBody": ""
+  },
+  "contact": {
+    "web3formsKey": ""
+  }
+}

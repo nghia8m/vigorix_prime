@@ -1,0 +1,21 @@
+# build output
+dist/
+# generated types
+.astro/
+# dependencies
+node_modules/
+# logs
+npm-debug.log*
+# environment variables
+.env
+.env.production
+# macOS
+.DS_Store
+# local Netlify/Cloudflare
+.wrangler/
+# editor
+.vscode/
+# stray office / temp files in project root
+*.docx
+~$*
+scripts/product-images-g*.json

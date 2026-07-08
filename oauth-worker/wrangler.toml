@@ -1,0 +1,12 @@
+name = "vigorixprime-cms-auth"
+main = "src/index.js"
+compatibility_date = "2025-01-01"
+
+# Domains allowed to use this authenticator (Sveltia sends the CMS host as
+# `site_id`). Wildcards supported. Includes Pages preview builds + the domain.
+[vars]
+ALLOWED_DOMAINS = "vigorixprime-cms.pages.dev,*.pages.dev,vigorixprime.com,www.vigorixprime.com"
+
+# Secrets are NOT stored here. Set them on the Worker with:
+#   wrangler secret put GITHUB_CLIENT_ID
+#   wrangler secret put GITHUB_CLIENT_SECRET

@@ -1,0 +1,28 @@
+---
+import site from "../data/site.json";
+const { footer, logoPre, logoAccent } = site;
+---
+<footer class="site-footer">
+  <div class="container">
+    <div class="footer-grid">
+      <div>
+        <div class="logo"><img src="/logo.png" alt="Vigorix Prime logo" class="logo-mark" />{logoPre}<span>{logoAccent}</span></div>
+        <p style="font-size:0.9rem;">{footer.tagline}</p>
+      </div>
+      {footer.columns.map((col) => (
+        <div>
+          <h4 set:html={col.heading} />
+          <ul>
+            {col.links.map((link) => (
+              <li><a href={link.href} set:html={link.label} /></li>
+            ))}
+          </ul>
+        </div>
+      ))}
+    </div>
+    <div class="footer-bottom">
+      <p class="disclosure">{footer.disclosure}</p>
+      <p>{footer.copyright}</p>
+    </div>
+  </div>
+</footer>

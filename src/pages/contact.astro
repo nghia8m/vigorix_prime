@@ -1,0 +1,93 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+import site from "../data/site.json";
+
+// Web3Forms access key is managed in Admin → Site Settings → Contact Form.
+// (It is a public, client-side key — safe to expose.) Empty = the form UI works
+// but submissions are not delivered until a key is set.
+const WEB3FORMS_ACCESS_KEY = site.contact?.web3formsKey || "";
+---
+<BaseLayout
+  title="Contact Vigorix Prime"
+  description="Questions, feedback or a product you'd like us to review? Get in touch with the Vigorix Prime editorial team."
+  path="/contact"
+>
+  <main class="page">
+    <div class="container page-wrap">
+      <h1>Contact Us</h1>
+      <p class="lead">Questions, feedback or a product you'd like us to review? We're listening.</p>
+
+      <p>Whether you've spotted something that needs updating in one of our guides, want to suggest a category we should cover, or simply have a question about a recommendation, drop us a message below. We read every note and aim to reply within a few business days.</p>
+
+      <h2>Send a Message</h2>
+      <form id="contact-form" class="contact-form">
+        <input type="hidden" name="access_key" value={WEB3FORMS_ACCESS_KEY} />
+        <input type="hidden" name="from_name" value="Vigorix Prime Contact Form" />
+        <input type="hidden" name="subject" value="New message from Vigorix Prime contact form" />
+        <input type="hidden" name="cc" value="affiliate@vigorixprime.com" />
+        <input type="checkbox" name="botcheck" style="display:none" tabindex="-1" autocomplete="off" />
+        <div>
+          <label for="name">Name</label>
+          <input type="text" id="name" name="name" placeholder="Your name" required />
+        </div>
+        <div>
+          <label for="email">Email</label>
+          <input type="email" id="email" name="email" placeholder="you@example.com" required />
+        </div>
+        <div>
+          <label for="subject">Subject</label>
+          <input type="text" id="subject" name="subject" placeholder="What's this about?" />
+        </div>
+        <div>
+          <label for="message">Message</label>
+          <textarea id="message" name="message" rows="6" placeholder="How can we help?" required></textarea>
+        </div>
+        <button type="submit" class="btn">Send Message</button>
+        <p id="form-status" role="status" aria-live="polite" style="margin-top:6px;font-weight:600;"></p>
+      </form>
+
+      <script is:inline>
+        (function () {
+          var form = document.getElementById("contact-form");
+          var statusEl = document.getElementById("form-status");
+          if (!form) return;
+          form.addEventListener("submit", function (e) {
+            e.preventDefault();
+            var btn = form.querySelector("button[type=submit]");
+            statusEl.style.color = "var(--gray-700)";
+            statusEl.textContent = "Sending…";
+            if (btn) btn.disabled = true;
+            fetch("https://api.web3forms.com/submit", {
+              method: "POST",
+              headers: { Accept: "application/json" },
+              body: new FormData(form),
+            })
+              .then(function (r) { return r.json(); })
+              .then(function (data) {
+                if (data.success) {
+                  statusEl.style.color = "#2f7d36";
+                  statusEl.textContent = "Thanks! Your message has been sent — we'll get back to you soon.";
+                  form.reset();
+                } else {
+                  statusEl.style.color = "#b23838";
+                  statusEl.textContent = "Sorry, something went wrong. Please email us at info@vigorixprime.com.";
+                }
+              })
+              .catch(function () {
+                statusEl.style.color = "#b23838";
+                statusEl.textContent = "Sorry, something went wrong. Please email us at info@vigorixprime.com.";
+              })
+              .finally(function () { if (btn) btn.disabled = false; });
+          });
+        })();
+      </script>
+
+      <h2>Prefer Email?</h2>
+      <p>You can also reach us directly by email:</p>
+      <ul>
+        <li>General questions &amp; feedback: <a href="mailto:info@vigorixprime.com">info@vigorixprime.com</a></li>
+        <li>Advertising &amp; affiliate partnerships: <a href="mailto:affiliate@vigorixprime.com">affiliate@vigorixprime.com</a></li>
+      </ul>
+    </div>
+  </main>
+</BaseLayout>

@@ -1,0 +1,52 @@
+---
+import { getCollection } from "astro:content";
+import BaseLayout from "../layouts/BaseLayout.astro";
+
+interface Props {
+  category: string; // matches article.data.category
+  path: string;
+  heading: string;
+  intro: string;
+  metaTitle: string;
+  metaDescription: string;
+}
+
+const { category, path, heading, intro, metaTitle, metaDescription } = Astro.props;
+
+const articles = (
+  await getCollection(
+    "articles",
+    ({ data }) => !data.draft && data.category === category
+  )
+).sort((x, y) => x.data.order - y.data.order);
+---
+<BaseLayout title={metaTitle} description={metaDescription} path={path}>
+  <section class="hero" style="padding:56px 0;">
+    <div class="container">
+      <h1 set:html={heading} />
+      <p>{intro}</p>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="container">
+      <div class="card-grid">
+        {articles.map((a) => (
+          <a class="card" href={`/${a.id}`}>
+            <div class="card-thumb">
+              {a.data.cardImage && (
+                <img src={a.data.cardImage} alt={a.data.cardTitle || a.data.title} width="600" height="340" loading="lazy" />
+              )}
+            </div>
+            <div class="card-body">
+              <span class="tag" set:html={a.data.category} />
+              <h3>{a.data.cardTitle || a.data.title}</h3>
+              <p>{a.data.cardSummary}</p>
+              <span class="read-more">Read review &rarr;</span>
+            </div>
+          </a>
+        ))}
+      </div>
+    </div>
+  </section>
+</BaseLayout>

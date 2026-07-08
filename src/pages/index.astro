@@ -1,0 +1,147 @@
+---
+import { getCollection } from "astro:content";
+import BaseLayout from "../layouts/BaseLayout.astro";
+import site from "../data/site.json";
+
+const articles = (await getCollection("articles", ({ data }) => !data.draft)).sort(
+  (x, y) => x.data.order - y.data.order
+);
+
+const card = (a: (typeof articles)[number]) => ({
+  href: `/${a.id}`,
+  image: a.data.cardImage,
+  category: a.data.category,
+  title: a.data.cardTitle || a.data.title,
+  summary: a.data.cardSummary,
+});
+
+const cards = articles.map(card);
+const picks = articles.slice(0, 4);
+const latest = articles.slice(-3).map(card);
+
+const heroSlides = site.hero?.slides ?? [];
+---
+<BaseLayout
+  title="Vigorix Prime — Men's Health, Supplement & Grooming Reviews"
+  description="Independent, research-backed reviews and best-picks guides for men's supplements, performance products and grooming gear. Find what actually works — without the hype."
+  path="/"
+>
+  <!-- HERO -->
+  <section class="hero">
+    {heroSlides.length > 0 && (
+      <div class="hero-slides" aria-hidden="true">
+        {heroSlides.map((s, i) => (
+          <img
+            src={s.image}
+            alt={s.alt || ""}
+            class:list={["hero-slide", { active: i === 0 }]}
+            loading={i === 0 ? "eager" : "lazy"}
+          />
+        ))}
+      </div>
+    )}
+    {heroSlides.length > 0 && <div class="hero-overlay"></div>}
+    <div class="container hero-content">
+      <h1>Smarter men's health buys, backed by real research</h1>
+      <p>We compare and rank the supplements, performance products and grooming gear worth your money — so you can skip the marketing hype and buy with confidence.</p>
+      <a href="#best-picks" class="btn">Explore Best Picks</a>
+    </div>
+    {heroSlides.length > 1 && (
+      <script is:inline>
+        (function () {
+          var imgs = document.querySelectorAll(".hero-slides .hero-slide");
+          if (imgs.length < 2) return;
+          var i = 0;
+          setInterval(function () {
+            imgs[i].classList.remove("active");
+            i = (i + 1) % imgs.length;
+            imgs[i].classList.add("active");
+          }, 5000);
+        })();
+      </script>
+    )}
+  </section>
+
+  <!-- CARD GRID: latest articles -->
+  <section class="section" id="latest">
+    <div class="container">
+      <div class="section-head">
+        <h2>Fresh Off the Test Bench</h2>
+        <a href="#best-picks" class="read-more" style="color:var(--orange);font-weight:700;">View all &rarr;</a>
+      </div>
+      <div class="card-grid">
+        {cards.map((c) => (
+          <a class="card" href={c.href}>
+            <div class="card-thumb">
+              {c.image && <img src={c.image} alt={c.title} width="600" height="340" loading="lazy" />}
+            </div>
+            <div class="card-body">
+              <span class="tag" set:html={c.category} />
+              <h3>{c.title}</h3>
+              <p>{c.summary}</p>
+              <span class="read-more">Read review &rarr;</span>
+            </div>
+          </a>
+        ))}
+      </div>
+    </div>
+  </section>
+
+  <!-- DEALS BANNER (full-width promo strip, visually distinct from review cards) -->
+  <section class="section" id="deals">
+    <div class="container">
+      <div class="deals-banner">
+        <div class="deals-banner-media">
+          {site.deals.image && <img src={site.deals.image} alt={site.deals.title} width="760" height="440" loading="lazy" />}
+        </div>
+        <div class="deals-banner-body">
+          <span class="deals-eyebrow">Deals</span>
+          <h2>{site.deals.title}</h2>
+          <p>{site.deals.text}</p>
+          <a href={site.deals.link} class="btn">Browse top-rated picks &rarr;</a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- EDITOR'S BEST PICKS -->
+  <section class="section section-alt" id="best-picks">
+    <div class="container">
+      <div class="section-head"><h2>Editor's Best Picks</h2></div>
+      <div class="pick-list">
+        {picks.map((a, i) => (
+          <div class="pick">
+            <div class="rank">{i + 1}</div>
+            <div>
+              <h3>{a.data.quickPick.name} — {a.data.category} Top Pick</h3>
+              <p>{a.data.quickPick.reason}</p>
+            </div>
+            <a href={`/${a.id}`} class="btn">See review</a>
+          </div>
+        ))}
+      </div>
+    </div>
+  </section>
+
+  <!-- LATEST REVIEWS (bottom strip: 1 row, 3 columns = 3 articles) -->
+  <section class="section" id="latest-reviews">
+    <div class="container">
+      <div class="section-head"><h2>Latest Reviews</h2></div>
+      <div class="card-grid cols-3">
+        {latest.map((c) => (
+          <a class="card" href={c.href}>
+            <div class="card-thumb">
+              {c.image && <img src={c.image} alt={c.title} width="600" height="340" loading="lazy" />}
+            </div>
+            <div class="card-body">
+              <span class="tag" set:html={c.category} />
+              <h3>{c.title}</h3>
+              <p>{c.summary}</p>
+              <span class="read-more">Read review &rarr;</span>
+            </div>
+          </a>
+        ))}
+      </div>
+    </div>
+  </section>
+</BaseLayout>

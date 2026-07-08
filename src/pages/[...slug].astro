@@ -1,0 +1,203 @@
+---
+import { getCollection } from "astro:content";
+import BaseLayout from "../layouts/BaseLayout.astro";
+
+export async function getStaticPaths() {
+  const articles = await getCollection("articles", ({ data }) => !data.draft);
+  return articles.map((article) => ({
+    params: { slug: article.id },
+    props: { article },
+  }));
+}
+
+const { article } = Astro.props;
+const a = article.data;
+const SITE_URL = "https://vigorixprime.com";
+const path = `/${article.id}`;
+const ogImage = a.ogImage || a.cardImage;
+
+// Monogram (first letters of the first two words) for the designed product
+// panel shown when a product has no real photo yet.
+const monogram = (s: string) =>
+  s
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((w) => w[0])
+    .join("")
+    .toUpperCase();
+
+// --- JSON-LD blocks (generated from frontmatter) ---------------------------
+const breadcrumb = {
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  itemListElement: [
+    { "@type": "ListItem", position: 1, name: "Home", item: `${SITE_URL}/` },
+    {
+      "@type": "ListItem",
+      position: 2,
+      name: a.category,
+      item: new URL(a.categoryLink, SITE_URL).href,
+    },
+    { "@type": "ListItem", position: 3, name: a.title },
+  ],
+};
+
+const itemList = {
+  "@context": "https://schema.org",
+  "@type": "ItemList",
+  name: a.title,
+  itemListOrder: "https://schema.org/ItemListOrderDescending",
+  itemListElement: a.products.map((p, i) => {
+    const product: Record<string, unknown> = { "@type": "Product", name: p.name };
+    if (p.image || ogImage)
+      product.image = new URL(p.image || ogImage || "", SITE_URL).href;
+    if (p.priceValue)
+      product.offers = {
+        "@type": "Offer",
+        price: p.priceValue,
+        priceCurrency: "USD",
+      };
+    if (p.ratingValue && p.ratingCount)
+      product.aggregateRating = {
+        "@type": "AggregateRating",
+        ratingValue: p.ratingValue,
+        bestRating: "5",
+        ratingCount: p.ratingCount,
+      };
+    if (p.reviewBody && p.ratingValue)
+      product.review = {
+        "@type": "Review",
+        author: { "@type": "Organization", name: "Vigorix Prime" },
+        reviewRating: {
+          "@type": "Rating",
+          ratingValue: p.ratingValue,
+          bestRating: "5",
+        },
+        reviewBody: p.reviewBody,
+      };
+    return { "@type": "ListItem", position: i + 1, item: product };
+  }),
+};
+
+const jsonLd: unknown[] = [breadcrumb, itemList];
+if (a.faqs.length) {
+  jsonLd.push({
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    mainEntity: a.faqs.map((f) => ({
+      "@type": "Question",
+      name: f.q,
+      acceptedAnswer: { "@type": "Answer", text: f.a },
+    })),
+  });
+}
+
+const quickPickProduct = a.products.find((p) => p.name === a.quickPick.name);
+const quickPickHref = quickPickProduct?.affiliateUrl || "#";
+---
+<BaseLayout
+  title={a.metaTitle}
+  description={a.metaDescription}
+  path={path}
+  ogType="article"
+  ogImage={ogImage}
+  jsonLd={jsonLd}
+>
+  <article class="article">
+    <div class="container article-wrap">
+      <div class="breadcrumb">
+        <a href="/">Home</a> &rsaquo; <a href={a.categoryLink}>{a.category}</a> &rsaquo; {a.title}
+      </div>
+
+      <h1>{a.title}</h1>
+      <div class="byline">By the Vigorix Prime Editorial Team &middot; {a.publishedLabel} &middot; {a.readTime}</div>
+
+      <p class="intro">{a.intro}</p>
+
+      <!-- QUICK PICK -->
+      <div class="quick-pick">
+        <span class="label">Quick Pick</span>
+        <h3>{a.quickPick.name}</h3>
+        <p>{a.quickPick.reason}</p>
+        <div class="check-price">
+          <a href={quickPickHref} rel="nofollow sponsored" target="_blank" class="btn">Check Latest Price</a>
+        </div>
+      </div>
+
+      <!-- COMPARISON TABLE -->
+      <h2>At a Glance: Top {a.products.length} Compared</h2>
+      <div class="table-wrap">
+        <table class="compare">
+          <thead>
+            <tr><th>#</th><th>Product</th><th>Price*</th><th>Rating</th><th>Best For</th></tr>
+          </thead>
+          <tbody>
+            {a.products.map((p, i) => (
+              <tr>
+                <td>{i + 1}</td>
+                <td>{p.name}</td>
+                <td>{p.price}</td>
+                <td>{p.rating}</td>
+                <td>{p.bestFor}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <p style="font-size:0.84rem;color:var(--gray-400);">{a.priceNote}</p>
+
+      <!-- PRODUCTS -->
+      {a.products.map((p, i) => (
+        <div class="product">
+          <div class="product-head"><span class="num">{i + 1}</span><span class="award">{p.award}</span></div>
+          <h2>{p.name}</h2>
+          {p.image ? (
+            <img src={p.image} alt={p.name} loading="lazy" style="border-radius:8px;margin:6px 0 14px;" />
+          ) : (
+            <div class="product-media" aria-hidden="true">
+              <span class="pm-badge">{p.award}</span>
+              <span class="pm-mono">{monogram(p.name)}</span>
+              <span class="pm-name">{p.name}</span>
+            </div>
+          )}
+          <p>{p.description}</p>
+          <div class="proscons">
+            <div class="box pros">
+              <h4>Pros</h4>
+              <ul>{p.pros.map((x) => <li>{x}</li>)}</ul>
+            </div>
+            <div class="box cons">
+              <h4>Cons</h4>
+              <ul>{p.cons.map((x) => <li>{x}</li>)}</ul>
+            </div>
+          </div>
+          <div class="check-price">
+            <a href={p.affiliateUrl || "#"} rel="nofollow sponsored" target="_blank" class="btn">Check Latest Price</a>
+          </div>
+        </div>
+      ))}
+
+      <!-- FAQ -->
+      {a.faqs.length > 0 && (
+        <>
+          <h2>Frequently Asked Questions</h2>
+          <div class="faq">
+            {a.faqs.map((f) => (
+              <details>
+                <summary>{f.q}</summary>
+                <p>{f.a}</p>
+              </details>
+            ))}
+          </div>
+        </>
+      )}
+
+      <!-- CONCLUSION -->
+      <div class="verdict">
+        <h2>Conclusion</h2>
+        <p>{a.conclusion}</p>
+      </div>
+    </div>
+  </article>
+</BaseLayout>

@@ -1,0 +1,17 @@
+---
+import site from "../data/site.json";
+const { header, logoPre, logoAccent } = site;
+---
+<header class="site-header">
+  <div class="container">
+    <a href="/" class="logo"><img src="/logo.png" alt="Vigorix Prime logo" class="logo-mark" />{logoPre}<span>{logoAccent}</span></a>
+    <button class="nav-toggle" aria-label="Toggle menu">&#9776;</button>
+    <nav class="main-nav">
+      <ul>
+        {header.nav.map((item) => (
+          <li><a href={item.href} set:html={item.label} /></li>
+        ))}
+      </ul>
+    </nav>
+  </div>
+</header>
