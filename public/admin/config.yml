@@ -14,7 +14,7 @@ backend:
   repo: nghia8m/vigorix_prime
   branch: main
   # URL of the deployed auth worker (handles GitHub login).
-  base_url: https://vigorixprime-cms-auth.EXAMPLE.workers.dev
+  base_url: https://vigorixprime-cms-auth.nghia8m.workers.dev
 
 # Where uploaded images are stored in the repo, and how they're referenced
 # in the built site. Astro serves everything in /public at the site root.
