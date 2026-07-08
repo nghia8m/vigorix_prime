@@ -56,6 +56,7 @@ products:
     ratingCount: "6800"
     reviewBody: "NSF Certified for Sport and trusted by pro athletes — the pick when certified purity is non-negotiable."
   - name: "Transparent Labs Creatine HMB"
+    image: "/images/products/best-creatine-monohydrate-3.jpg"
     award: "Best with HMB"
     affiliateUrl: ""
     price: "~$50 (30 servings)"

@@ -11,7 +11,7 @@
 
 backend:
   name: github
-  repo: OWNER/vigorixprime-cms
+  repo: nghia8m/vigorix_prime
   branch: main
   # URL of the deployed auth worker (handles GitHub login).
   base_url: https://vigorixprime-cms-auth.EXAMPLE.workers.dev

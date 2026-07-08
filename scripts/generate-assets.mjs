@@ -25,10 +25,12 @@ import { fileURLToPath } from "node:url";
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 
 // Brand palette (matches src/styles/global.css)
-const NAVY = "#122a47";
-const NAVY_DARK = "#0c1e34";
-const NAVY_LIGHT = "#1e4a7a";
-const ORANGE = "#ff5630";
+// Azure blue is the dominant brand color; orange is the complementary accent so
+// the logo arrow pops. NAVY here is the deep-azure surface shade.
+const NAVY = "#0c6f9e";
+const NAVY_DARK = "#084f73";
+const NAVY_LIGHT = "#16a6e0";
+const ORANGE = "#ff7a1a";
 const WHITE = "#ffffff";
 
 const out = (p) => resolve(ROOT, p);
@@ -154,10 +156,14 @@ async function main() {
   await svgToPng(iconSvg(), out("public/favicon.png"), 512, 512);
   await svgToJpg(ogSvg(), out("public/assets/og-default.jpg"));
   await svgToJpg(cardSvg("Deals", "This Week's Best Deals"), out("public/images/deals.jpg"));
+  // Card images are real stock photos now — only (re)generate brand-placeholder
+  // cards for slugs whose stock photo failed to download (kept a placeholder).
+  const PLACEHOLDER_ONLY = new Set(process.env.PLACEHOLDER_SLUGS?.split(",").filter(Boolean));
   for (const [slug, label, title] of cards) {
+    if (!PLACEHOLDER_ONLY.has(slug)) continue;
     await svgToJpg(cardSvg(label, title), out(`public/images/${slug}.jpg`));
   }
-  console.log("\nAll brand assets generated.");
+  console.log("\nBrand assets generated (logo, favicon, OG, deals" + (PLACEHOLDER_ONLY.size ? ", placeholder cards" : "") + ").");
 }
 
 main().catch((e) => {

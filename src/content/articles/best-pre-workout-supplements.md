@@ -14,6 +14,7 @@ quickPick:
   reason: "It combines a fully disclosed label with clinically meaningful doses of L-citrulline, beta-alanine, betaine and tyrosine plus a strong, well-balanced caffeine hit — no proprietary blends and no artificial sweeteners. For most men who want a serious, honest pre-workout, it's the standout."
 products:
   - name: "Transparent Labs BULK Black"
+    image: "/images/products/best-pre-workout-supplements-1.jpg"
     award: "Best Overall"
     affiliateUrl: ""
     price: "~$50 (30 servings)"

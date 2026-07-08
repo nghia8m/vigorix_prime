@@ -35,6 +35,7 @@ products:
     ratingCount: "3100"
     reviewBody: "The most comprehensive, well-dosed prostate formula for the widest audience — many researched ingredients in one trusted softgel."
   - name: "NOW Foods Beta-Sitosterol Plant Sterols"
+    image: "/images/products/best-prostate-health-supplements-2.jpg"
     award: "Best Value"
     affiliateUrl: ""
     price: "~$20 (90 softgels)"

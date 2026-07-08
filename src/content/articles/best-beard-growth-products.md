@@ -77,6 +77,7 @@ products:
     ratingCount: "1400"
     reviewBody: "A plant-based serum for men avoiding drugs — good for conditioning and appearance, though growth claims are thin."
   - name: "Honest Amish Classic Beard Oil"
+    image: "/images/products/best-beard-growth-products-4.jpg"
     award: "Best Conditioning Oil"
     affiliateUrl: ""
     price: "~$25 (2 oz)"

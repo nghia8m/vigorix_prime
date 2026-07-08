@@ -56,6 +56,7 @@ products:
     ratingCount: "2400"
     reviewBody: "A lifter-focused formula with a big D-aspartic acid dose — the pick if your main goal is muscle and strength."
   - name: "Prime Male"
+    image: "/images/products/best-testosterone-booster-supplements-3.jpg"
     award: "Best for Men Over 40"
     affiliateUrl: ""
     price: "~$69 (30 servings)"
