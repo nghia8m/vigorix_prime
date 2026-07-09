@@ -167,21 +167,20 @@ collections:
           - name: "code"
             label: "Site-wide Code"
             widget: "object"
+            required: false
             fields:
+              # Plain textarea (text) widgets — reliable to save. Paste raw HTML
+              # (GA4 / Awin / Impact snippets); it is injected verbatim via set:html.
               - name: "customHead"
-                label: "Custom Head Code (Awin / Impact verification, analytics)"
-                widget: "code"
-                output_code_only: true
-                default_language: "html"
-                allow_language_selection: false
+                label: "Custom Head Code (GA4 / Awin / Impact verification, analytics)"
+                widget: "text"
                 required: false
+                default: ""
               - name: "customBody"
                 label: "Custom Body Code (end of <body>)"
-                widget: "code"
-                output_code_only: true
-                default_language: "html"
-                allow_language_selection: false
+                widget: "text"
                 required: false
+                default: ""
           - name: "contact"
             label: "Contact Form"
             widget: "object"

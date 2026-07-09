@@ -1,0 +1,5 @@
+Client ID: Ov23liUtUIYdQhzvrZ3K
+Client Secret: 0e248d7d146a9428305b2fc02cb19064a7aa2474
+
+Web: https://vigorixprime.com (+ www) ✓ SSL
+Admin CMS: https://vigorixprime.com/admin (đăng nhập GitHub — đã test OK)

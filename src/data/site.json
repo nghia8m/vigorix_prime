@@ -130,7 +130,7 @@
     "link": "/#best-picks"
   },
   "code": {
-    "customHead": "",
+    "customHead": "<!-- Google tag (gtag.js) -->\n<script async src=\"https://www.googletagmanager.com/gtag/js?id=G-0831NZ58NF\"></script>\n<script>\n  window.dataLayer = window.dataLayer || [];\n  function gtag(){dataLayer.push(arguments);}\n  gtag(\"js\", new Date());\n  gtag(\"config\", \"G-0831NZ58NF\");\n</script>",
     "customBody": ""
   },
   "contact": {
