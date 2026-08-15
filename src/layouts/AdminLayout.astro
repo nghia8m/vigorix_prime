@@ -36,29 +36,34 @@ const { title } = Astro.props;
     <p class="ad-gate-note" data-gate-note>Checking your session…</p>
 
     <form class="ad-login" data-login-form hidden>
-      <label for="gh-token">GitHub personal access token</label>
+      <label for="admin-email">Email</label>
       <input
-        id="gh-token"
-        name="token"
-        type="password"
-        autocomplete="off"
+        id="admin-email"
+        name="email"
+        type="email"
+        autocomplete="username"
         spellcheck="false"
-        placeholder="ghp_… or github_pat_…"
-        data-login-token
+        placeholder="you@example.com"
+        data-login-email
       />
-      <p class="ad-login-hint">
-        A token with no scopes at all is enough — it is used only to read your
-        username. Create one at
-        <a href="https://github.com/settings/tokens" target="_blank" rel="noopener">github.com/settings/tokens</a>.
-        It is sent once, checked, and never stored.
-      </p>
+
+      <label for="admin-password">Password</label>
+      <input
+        id="admin-password"
+        name="password"
+        type="password"
+        autocomplete="current-password"
+        data-login-password
+      />
+
       <p class="ad-login-error" data-login-error role="alert" hidden></p>
       <button type="submit" class="btn btn-shop" data-login-submit>Sign in</button>
     </form>
 
     <p class="ad-gate-help">
-      These screens show customer names, addresses and payment records. Access is
-      limited to the GitHub accounts listed in <code>ADMIN_GITHUB_LOGINS</code>.
+      These screens show customer names, addresses and payment records. The
+      password is set on the server with <code>npm run admin:password</code> and
+      stored only as a hash.
     </p>
   </div>
 

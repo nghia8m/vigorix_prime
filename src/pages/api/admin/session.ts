@@ -1,8 +1,9 @@
 import type { APIRoute } from "astro";
 import {
-  readAdminEnv, checkConfigured, githubLogin, createSession,
+  readAdminEnv, checkConfigured, createSession,
   cookieHeader, clearCookieHeader, requireAdmin,
 } from "../../../lib/admin-auth";
+import { verifyPassword } from "../../../lib/admin-password";
 
 export const prerender = false;
 
@@ -12,7 +13,7 @@ const json = (body: unknown, status = 200, extra: Record<string, string> = {}) =
     headers: { "Content-Type": "application/json", "Cache-Control": "no-store", ...extra },
   });
 
-/** Who am I? Used by the pages to decide whether to show a login prompt. */
+/** Who am I? Used by the pages to decide whether to show the sign-in form. */
 export const GET: APIRoute = async ({ request, locals }) => {
   const guard = await requireAdmin(request, locals);
   if (guard.response) return guard.response;
@@ -20,14 +21,14 @@ export const GET: APIRoute = async ({ request, locals }) => {
 };
 
 /**
- * Exchange a GitHub token for a session cookie.
+ * Sign in with email + password.
  *
- * The token comes from the same OAuth worker the CMS already uses. It is
- * verified against GitHub and the resulting login must be on the allowlist —
- * being able to log in to GitHub is not by itself permission to read customer
- * addresses. The token is never stored.
+ * The password is compared against a PBKDF2 hash; the plaintext exists only for
+ * the length of this request. Both a wrong email and a wrong password give the
+ * same answer and take the same work, so this cannot be used to find out which
+ * email is the real one.
  */
-export const POST: APIRoute = async ({ request, locals }) => {
+export const POST: APIRoute = async ({ request, locals, clientAddress }) => {
   const env = readAdminEnv(locals);
   const configured = checkConfigured(env);
   if (!configured.ok) {
@@ -42,22 +43,31 @@ export const POST: APIRoute = async ({ request, locals }) => {
     return json({ ok: false, error: "bad_request" }, 400);
   }
 
-  const token = typeof body?.token === "string" ? body.token.trim() : "";
-  if (!token) return json({ ok: false, error: "missing_token" }, 400);
-
-  const who = await githubLogin(token);
-  if (!who.ok) {
-    console.warn("[VP-ADMIN-LOGIN-FAILED] GitHub rejected the token, status", who.status);
-    return json({ ok: false, error: "github_rejected" }, 401);
+  const email = typeof body?.email === "string" ? body.email.trim().toLowerCase() : "";
+  const password = typeof body?.password === "string" ? body.password : "";
+  if (!email || !password) {
+    return json({ ok: false, error: "missing_credentials" }, 400);
   }
 
-  if (!env.allowedLogins.includes(who.login.toLowerCase())) {
-    console.warn("[VP-ADMIN-LOGIN-DENIED] GitHub user", who.login, "is not on ADMIN_GITHUB_LOGINS.");
-    return json({ ok: false, error: "not_allowed", login: who.login }, 403);
+  // Always run the hash comparison, even when the email is wrong, so the reply
+  // takes the same time either way.
+  const passwordOk = await verifyPassword(password, env.passwordHash);
+  const emailOk = email === env.email;
+
+  if (!emailOk || !passwordOk) {
+    console.warn(
+      "[VP-ADMIN-LOGIN-FAILED] from",
+      clientAddress ?? "unknown",
+      "— wrong",
+      !emailOk && !passwordOk ? "email and password" : !emailOk ? "email" : "password"
+    );
+    // Deliberately vague to the caller: naming which half was wrong tells an
+    // attacker when they have found the right email.
+    return json({ ok: false, error: "invalid_credentials" }, 401);
   }
 
-  const session = await createSession(env, who.login);
-  return json({ ok: true, login: who.login }, 200, { "Set-Cookie": cookieHeader(session) });
+  const session = await createSession(env, env.email);
+  return json({ ok: true, login: env.email }, 200, { "Set-Cookie": cookieHeader(session) });
 };
 
 /** Log out. */

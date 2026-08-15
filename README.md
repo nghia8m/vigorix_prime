@@ -63,27 +63,40 @@ serve anything until that protection is configured**.
 
 ### 1. Environment variables
 
-Both go in `.env` locally (already gitignored) and in Cloudflare's environment
-variables in production. Neither belongs in `site.json` or the CMS: anything
-saved there is committed to the repo forever.
+All three go in `.env` locally (already gitignored) and in Cloudflare’s
+environment variables in production. None belongs in `site.json` or the CMS:
+anything saved there is committed to the repo forever.
 
 ```
 ADMIN_SESSION_SECRET=<64 hex characters>
-ADMIN_GITHUB_LOGINS=nghia8m
+ADMIN_EMAIL=you@example.com
+ADMIN_PASSWORD_HASH=pbkdf2:210000:<salt>:<hash>
 ```
 
-Generate a secret with:
+Generate the session secret:
 
 ```bash
 node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
 ```
 
-`ADMIN_GITHUB_LOGINS` is a comma-separated allowlist of GitHub usernames. Being
-able to sign in to GitHub is not by itself permission to read customer
-addresses — the account must be on this list.
+Generate the password hash — it prints the lines to paste:
 
-With either missing, every admin endpoint answers `503 admin_not_configured`.
-There is no development flag that waves requests through.
+```bash
+npm run admin:password -- "a long password you will remember"
+```
+
+The password itself is never written anywhere: `.env` holds only a PBKDF2 hash,
+which cannot be turned back into the password. Twelve characters minimum,
+enforced by the script. To change it later, run the script again and replace the
+line.
+
+The hash is separated by `:` and never by the dollar sign — Vite expands
+`$NAME` inside `.env`, so a dollar sign in the value is silently eaten and every
+login then fails with no visible reason.
+
+With any of the three missing, every admin endpoint answers
+`503 admin_not_configured`. There is no development flag that waves requests
+through.
 
 ### 2. The database
 
@@ -98,15 +111,15 @@ through the adapter's platform proxy. Nothing touches a Cloudflare account.
 
 1. `npm run dev`
 2. Open **http://localhost:4321/admin/orders**
-3. Paste a **GitHub personal access token** and press *Sign in*.
-   A token with **no scopes at all** is enough — it is used once to read your
-   username, then discarded. Create one at
-   [github.com/settings/tokens](https://github.com/settings/tokens).
+3. Enter the email and password from step 1 and press *Sign in*.
 4. Sign out with the button in the header.
 
 The session is a signed cookie valid for 8 hours. Changing
-`ADMIN_SESSION_SECRET` immediately invalidates every existing session — that is
-the way to lock everyone out if a laptop goes missing.
+`ADMIN_SESSION_SECRET` — or `ADMIN_EMAIL` — invalidates every existing session
+immediately, which is how to lock everyone out if a laptop goes missing.
+
+A wrong email and a wrong password give the same answer and take the same time,
+so the form cannot be used to work out which email is the real one.
 
 ### What the screen can and cannot change
 

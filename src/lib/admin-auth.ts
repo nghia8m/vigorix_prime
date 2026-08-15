@@ -7,8 +7,8 @@
  *
  *   • FAIL CLOSED. Missing configuration means 503, never "allow".
  *   • The session is a cookie signed with HMAC-SHA256 and short-lived.
- *   • Identity comes from GitHub, checked against an explicit allowlist —
- *     the same account that already administers the CMS.
+ *   • Identity is an email + password pair. The password is stored only as a
+ *     PBKDF2 hash; nothing can turn it back into the password.
  *
  * Cloudflare Access can and should sit in front of this in production as a
  * second layer. It is not a substitute: on localhost, and on any request that
@@ -20,7 +20,8 @@ const SESSION_TTL_SECONDS = 60 * 60 * 8;
 
 export interface AdminEnv {
   sessionSecret: string;
-  allowedLogins: string[];
+  email: string;
+  passwordHash: string;
   paypalMode: string;
 }
 
@@ -38,10 +39,8 @@ function readVar(locals: unknown, key: string): string {
 export function readAdminEnv(locals: unknown): AdminEnv {
   return {
     sessionSecret: readVar(locals, "ADMIN_SESSION_SECRET"),
-    allowedLogins: readVar(locals, "ADMIN_GITHUB_LOGINS")
-      .split(",")
-      .map((s) => s.trim().toLowerCase())
-      .filter(Boolean),
+    email: readVar(locals, "ADMIN_EMAIL").trim().toLowerCase(),
+    passwordHash: readVar(locals, "ADMIN_PASSWORD_HASH"),
     paypalMode: readVar(locals, "PAYPAL_MODE").toLowerCase(),
   };
 }
@@ -59,8 +58,14 @@ export function checkConfigured(env: AdminEnv): ConfigCheck {
   if (env.sessionSecret.length < 32) {
     return { ok: false, reason: "ADMIN_SESSION_SECRET is missing or shorter than 32 characters." };
   }
-  if (env.allowedLogins.length === 0) {
-    return { ok: false, reason: "ADMIN_GITHUB_LOGINS is empty; nobody is allowed in." };
+  if (!env.email) {
+    return { ok: false, reason: "ADMIN_EMAIL is not set; nobody is allowed in." };
+  }
+  if (!env.passwordHash.startsWith("pbkdf2:")) {
+    return {
+      ok: false,
+      reason: "ADMIN_PASSWORD_HASH is missing or not a hash. Run: npm run admin:password -- \"...\"",
+    };
   }
   return { ok: true };
 }
@@ -104,14 +109,30 @@ export type SessionCheck =
 
 export async function readSession(env: AdminEnv, cookie: string | undefined): Promise<SessionCheck> {
   if (!cookie) return { ok: false, reason: "missing" };
-  const parts = cookie.split(".");
-  if (parts.length !== 3) return { ok: false, reason: "malformed" };
-  const [login, expires, sig] = parts;
+
+  // Parsed from the RIGHT: the login is an email address and contains dots, so
+  // splitting on "." from the left would shred it. Signature last, expiry
+  // second-last, everything before that is the login.
+  const lastDot = cookie.lastIndexOf(".");
+  if (lastDot < 1) return { ok: false, reason: "malformed" };
+  const sig = cookie.slice(lastDot + 1);
+  const head = cookie.slice(0, lastDot);
+
+  const secondDot = head.lastIndexOf(".");
+  if (secondDot < 1) return { ok: false, reason: "malformed" };
+  const expires = head.slice(secondDot + 1);
+  const login = head.slice(0, secondDot);
+
+  if (!sig || !expires || !login || !/^\d+$/.test(expires)) {
+    return { ok: false, reason: "malformed" };
+  }
 
   const expected = await hmac(env.sessionSecret, `${login}.${expires}`);
   if (!safeEqual(sig, expected)) return { ok: false, reason: "bad_signature" };
   if (Number(expires) * 1000 < Date.now()) return { ok: false, reason: "expired" };
-  if (!env.allowedLogins.includes(login.toLowerCase())) return { ok: false, reason: "not_allowed" };
+  // The session names the account it was issued for; changing ADMIN_EMAIL ends
+  // every session issued to the old one.
+  if (login.toLowerCase() !== env.email) return { ok: false, reason: "not_allowed" };
 
   return { ok: true, login };
 }
@@ -173,19 +194,4 @@ export async function requireAdmin(request: Request, locals: unknown): Promise<G
     };
   }
   return { login: session.login };
-}
-
-/** Verifies a GitHub token and returns the login it belongs to. */
-export async function githubLogin(token: string): Promise<{ ok: true; login: string } | { ok: false; status: number }> {
-  const res = await fetch("https://api.github.com/user", {
-    headers: {
-      Authorization: `Bearer ${token}`,
-      Accept: "application/vnd.github+json",
-      "User-Agent": "vigorix-prime-admin",
-    },
-  });
-  if (!res.ok) return { ok: false, status: res.status };
-  const body = (await res.json()) as { login?: string };
-  if (!body.login) return { ok: false, status: 502 };
-  return { ok: true, login: body.login };
 }

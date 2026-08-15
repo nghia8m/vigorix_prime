@@ -81,45 +81,43 @@
   }
 
   /**
-   * Sign in with a GitHub personal access token.
+   * Sign in with email + password.
    *
-   * A pasted token rather than an OAuth popup, on purpose: the CMS worker
-   * issues tokens for a deployed site_id, so the popup flow does not work on
-   * localhost, and an admin you cannot reach locally is an admin nobody can
-   * test. The token needs no scopes — it is used once to read the username,
-   * checked against the allowlist, and never stored.
+   * Chosen over a GitHub token because this admin has exactly one user, and a
+   * login they cannot find in a settings menu is a login they cannot use. The
+   * password is checked against a PBKDF2 hash on the server; the plaintext is
+   * never stored on either side.
    */
   function submitLogin(e) {
     if (e) e.preventDefault();
-    var input = $("[data-login-token]");
+    var emailInput = $("[data-login-email]");
+    var passInput = $("[data-login-password]");
     var button = $("[data-login-submit]");
-    var token = (input.value || "").trim();
+    var email = (emailInput.value || "").trim();
+    var password = passInput.value || "";
 
     loginError("");
-    if (!token) { loginError("Paste a GitHub token first."); input.focus(); return; }
+    if (!email) { loginError("Enter your email."); emailInput.focus(); return; }
+    if (!password) { loginError("Enter your password."); passInput.focus(); return; }
 
     button.disabled = true;
     var previous = button.textContent;
-    button.textContent = "Checking…";
+    button.textContent = "Signing in…";
 
     api("/api/admin/session", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ token: token })
+      body: JSON.stringify({ email: email, password: password })
     }).then(function (res) {
       button.disabled = false;
       button.textContent = previous;
-      input.value = "";
+      passInput.value = "";
 
       if (res.status === 200 && res.body.ok) { loginError(""); boot(); return; }
 
       if (res.status === 401) {
-        loginError("GitHub did not accept that token. Check it has not expired, or create a new one.");
-      } else if (res.status === 403) {
-        loginError(
-          "GitHub account \"" + (res.body.login || "?") + "\" is signed in, but it is not on the " +
-          "allowed list. Add it to ADMIN_GITHUB_LOGINS on the server."
-        );
+        loginError("That email and password do not match.");
+        passInput.focus();
       } else if (res.status === 503) {
         loginError(res.body.message || "Admin access is not configured on the server.");
       } else {
@@ -143,7 +141,7 @@
       if (res.status === 503) {
         showGate(
           "Admin access is not configured on the server yet (" +
-            (res.body.message || "missing ADMIN_SESSION_SECRET / ADMIN_GITHUB_LOGINS") +
+            (res.body.message || "missing ADMIN_SESSION_SECRET / ADMIN_EMAIL / ADMIN_PASSWORD_HASH") +
             "). Nothing can be shown until it is.",
           false
         );
