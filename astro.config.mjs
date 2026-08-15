@@ -24,4 +24,14 @@ export default defineConfig({
   //               src/content/products/*.mdx (rendered to static HTML).
   // draftGuard -> aborts a production build while any product is draft: true.
   integrations: [mdx(), draftGuard(), cloudflareRoutes()],
+
+  vite: {
+    server: {
+      // PayPal webhooks cannot reach localhost, so testing them means exposing
+      // the dev server through a temporary cloudflared tunnel. Vite refuses
+      // unknown Host headers by default, which blocks exactly that. Dev-server
+      // setting only — it has no effect on the built site.
+      allowedHosts: [".trycloudflare.com"],
+    },
+  },
 });
