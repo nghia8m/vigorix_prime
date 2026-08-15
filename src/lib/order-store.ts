@@ -85,6 +85,12 @@ export async function upsertOrder(db: OrderStoreDb, o: OrderRecord): Promise<voi
     )
     .run();
 
+  // Replace, do not append. A capture can legitimately be replayed (PayPal
+  // returns the same capture for a repeated PayPal-Request-Id, and the webhook
+  // may arrive for an order that already exists); appending would double the
+  // lines and a fulfilment screen would show twice the goods to ship.
+  await db.prepare(`DELETE FROM order_lines WHERE order_id = ?`).bind(o.orderId).run();
+
   for (const line of o.lines) {
     await db
       .prepare(

@@ -70,9 +70,24 @@ describe("a successful write", () => {
 
     assert.equal(out.persisted, true);
     assert.equal(out.reconcile, undefined);
-    assert.equal(calls.length, 2); // one order, one line
+    // order upsert, clear any previous lines, then one insert per line
+    assert.equal(calls.length, 3);
     assert.match(calls[0].sql, /INSERT INTO orders/);
-    assert.match(calls[1].sql, /INSERT INTO order_lines/);
+    assert.match(calls[1].sql, /DELETE FROM order_lines/);
+    assert.match(calls[2].sql, /INSERT INTO order_lines/);
+  });
+
+  test("replaying a capture replaces the lines instead of doubling them", async () => {
+    const { db, calls } = fakeDb();
+    await upsertOrder(db, ORDER);
+    await upsertOrder(db, ORDER); // same capture arriving twice
+
+    const deletes = calls.filter((c) => /DELETE FROM order_lines/.test(c.sql));
+    const inserts = calls.filter((c) => /INSERT INTO order_lines/.test(c.sql));
+    assert.equal(deletes.length, 2, "each write must clear the previous lines first");
+    assert.equal(inserts.length, 2, "one line inserted per call, not accumulating");
+    // The delete must be scoped to this order, never a blanket wipe.
+    assert.deepEqual(deletes[0].args, [ORDER.orderId]);
   });
 
   test("upsert can create an order the webhook has never seen", async () => {
