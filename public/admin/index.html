@@ -219,5 +219,17 @@
         }
       })();
     </script>
+    <!-- The CMS is a separate app and cannot host the admin tab bar, so this
+         puts one link back. Same session, no second sign-in. -->
+    <a id="vp-back-to-admin" href="/admin/orders">&larr; Orders</a>
+    <style>
+      #vp-back-to-admin {
+        position: fixed; left: 12px; bottom: 12px; z-index: 2147483000;
+        background: #0c6f9e; color: #fff; font: 600 13px/1 system-ui, sans-serif;
+        padding: 9px 14px; border-radius: 20px; text-decoration: none;
+        box-shadow: 0 4px 14px rgba(0,0,0,0.28);
+      }
+      #vp-back-to-admin:hover { background: #084f73; }
+    </style>
   </body>
 </html>

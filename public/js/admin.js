@@ -62,6 +62,10 @@
     $("[data-gate-note]").textContent = message;
     var form = $("[data-login-form]");
     if (form) form.hidden = !canLogin;
+    // The section tabs lead to customer data; no reason to show them to someone
+    // who is not signed in.
+    var tabs = $("[data-admin-tabs]");
+    if (tabs) tabs.hidden = true;
   }
 
   function loginError(message) {
@@ -78,6 +82,8 @@
     who.hidden = false;
     who.textContent = "Signed in as " + login;
     $("[data-admin-logout]").hidden = false;
+    var tabs = $("[data-admin-tabs]");
+    if (tabs) tabs.hidden = false;
   }
 
   /**

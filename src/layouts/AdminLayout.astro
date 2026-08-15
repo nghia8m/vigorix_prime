@@ -21,13 +21,21 @@ const { title } = Astro.props;
 <body class="admin-body">
   <header class="ad-header">
     <div class="ad-header-inner">
-      <a href="/admin/orders" class="ad-brand">Vigorix Prime <span>Orders</span></a>
+      <a href="/admin/orders" class="ad-brand">Vigorix Prime <span>Admin</span></a>
       <nav class="ad-nav">
-        <a href="/admin/index.html">Content CMS</a>
         <span class="ad-who" data-admin-who hidden></span>
         <button type="button" class="ad-logout" data-admin-logout hidden>Log out</button>
       </nav>
     </div>
+
+    <!-- One place to start. Orders is this app; the other three hand over to the
+         content CMS, which is already signed in from the same session. -->
+    <nav class="ad-tabs" aria-label="Admin sections" data-admin-tabs hidden>
+      <a href="/admin/orders" class="ad-tab is-current" aria-current="page">Orders</a>
+      <a href="/admin/index.html#/collections/products" class="ad-tab">Products</a>
+      <a href="/admin/index.html#/collections/articles" class="ad-tab">Articles</a>
+      <a href="/admin/index.html#/collections/settings" class="ad-tab">Site settings</a>
+    </nav>
   </header>
 
   <!-- Shown until a session is confirmed. The data below never renders without one. -->
