@@ -69,8 +69,26 @@ export function shippingSettings(): ShippingSettings {
  * can put in the cart is also a draft you can check out, instead of the server
  * silently refusing every order with "no such product".
  */
-export async function loadPricingContext(): Promise<PricingContext> {
-  const products = (await getShopProducts()) as unknown as ProductLike[];
+export async function loadPricingContext(mode?: "sandbox" | "live"): Promise<PricingContext> {
+  let products = (await getShopProducts()) as unknown as ProductLike[];
+
+  // Belt and braces for real money. getShopProducts() lets drafts through in
+  // dev and in build:preview; if that output were ever deployed with live
+  // credentials, a placeholder product would be sellable. Under live mode
+  // drafts are dropped here no matter what ALLOW_DRAFT_PRODUCTS said at build
+  // time.
+  if (mode === "live") {
+    const before = products.length;
+    products = products.filter((p) => !p.data.draft);
+    if (products.length !== before) {
+      console.error(
+        "[VP-DRAFT-IN-LIVE] Dropped",
+        before - products.length,
+        "draft product(s) from a LIVE pricing context — this build should never have been deployed."
+      );
+    }
+  }
+
   return {
     catalogue: toCatalogue(products),
     shipping: shippingSettings(),

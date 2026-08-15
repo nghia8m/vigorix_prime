@@ -3,7 +3,8 @@ import { readPayPalEnv, json } from "../../../lib/paypal-env";
 import { getAccessToken, getOrder, captureOrder, readCapture, amountToCents } from "../../../lib/paypal-api";
 import { loadPricingContext } from "../../../lib/server-catalogue";
 import { priceOrder, verifyClientTotal } from "../../../lib/pricing";
-import type { PriceSuccess } from "../../../lib/pricing";
+import { persistCapturedOrder, recordEvent } from "../../../lib/order-store";
+import type { OrderRecord } from "../../../lib/order-store";
 import { readShipping } from "../../../lib/cart-config";
 import site from "../../../data/site.json";
 
@@ -27,85 +28,11 @@ export const prerender = false;
    money for a total nobody agreed to.
    =========================================================================== */
 
-type Db = { prepare: (sql: string) => any; batch: (stmts: any[]) => Promise<unknown> };
+type Db = import("../../../lib/order-store").OrderStoreDb;
 
 function db(locals: unknown): Db | null {
   const env = (locals as { runtime?: { env?: Record<string, unknown> } })?.runtime?.env;
   return (env?.ORDERS_DB as Db) ?? null;
-}
-
-const nowIso = () => new Date().toISOString();
-
-async function recordEvent(
-  database: Db | null,
-  row: { orderId: string | null; source: string; type: string; paypalId: string; status: string; payload: unknown }
-) {
-  if (!database) return;
-  try {
-    await database
-      .prepare(
-        `INSERT INTO order_events (order_id, source, event_type, paypal_id, status_after, payload, created_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?)`
-      )
-      .bind(row.orderId, row.source, row.type, row.paypalId, row.status, JSON.stringify(row.payload).slice(0, 20000), nowIso())
-      .run();
-  } catch {
-    /* logging must never break a payment path */
-  }
-}
-
-async function saveOrder(
-  database: Db,
-  args: {
-    orderId: string;
-    paypalOrderId: string;
-    captureId: string;
-    status: string;
-    currency: string;
-    priced: PriceSuccess;
-    customer: Record<string, string>;
-    address: Record<string, string>;
-    raw: unknown;
-  }
-) {
-  const { priced, customer, address } = args;
-  const stamp = nowIso();
-
-  await database
-    .prepare(
-      `INSERT INTO orders (
-        order_id, paypal_order_id, paypal_capture_id, status, currency,
-        subtotal_cents, shipping_cents, total_cents,
-        shipping_method_id, shipping_method_label,
-        email, first_name, last_name, phone,
-        address_line1, address_line2, city, region, postal_code, country,
-        paypal_raw, created_at, updated_at
-      ) VALUES (?,?,?,?,?, ?,?,?, ?,?, ?,?,?,?, ?,?,?,?,?,?, ?,?,?)`
-    )
-    .bind(
-      args.orderId, args.paypalOrderId, args.captureId, args.status, args.currency,
-      priced.subtotalCents, priced.shippingCents, priced.totalCents,
-      priced.shippingMethod?.id ?? null, priced.shippingMethod?.label ?? null,
-      customer.email, customer.firstName, customer.lastName, customer.phone || null,
-      address.line1, address.line2 || null, address.city, address.region || null,
-      address.postalCode || null, address.country,
-      JSON.stringify(args.raw).slice(0, 60000), stamp, stamp
-    )
-    .run();
-
-  for (const line of priced.lines) {
-    await database
-      .prepare(
-        `INSERT INTO order_lines (order_id, product_slug, variant_id, name, variant_label, sku,
-          unit_price_cents, qty, line_total_cents) VALUES (?,?,?,?,?,?,?,?,?)`
-      )
-      .bind(
-        args.orderId, line.productSlug, line.variantId, line.name,
-        line.variantLabel || null, line.sku || null,
-        line.unitPriceCents, line.qty, line.lineTotalCents
-      )
-      .run();
-  }
 }
 
 export const POST: APIRoute = async ({ request, locals }) => {
@@ -130,7 +57,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
   }
 
   // ---- 1. price the order ourselves ---------------------------------------
-  const ctx = await loadPricingContext();
+  const ctx = await loadPricingContext(env.mode);
   const priced = priceOrder(ctx, {
     items: Array.isArray(payload?.items) ? payload.items : [],
     shippingRateId: payload?.shippingRateId ?? null,
@@ -233,31 +160,30 @@ export const POST: APIRoute = async ({ request, locals }) => {
   const status = info.status === "COMPLETED" ? "paid" : info.status === "PENDING" ? "pending" : "failed";
 
   // ---- 6. persist ---------------------------------------------------------
-  if (database) {
-    try {
-      await saveOrder(database, {
-        orderId,
-        paypalOrderId,
-        captureId: info.captureId,
-        status,
-        currency: info.currency || remoteCurrency,
-        priced,
-        customer: payload?.customer ?? {},
-        address: payload?.shippingAddress ?? {},
-        raw: captured.body,
-      });
-    } catch (err) {
-      // The money HAS moved. Losing the row must be loud, not silent.
-      await recordEvent(database, {
-        orderId, source: "capture", type: "persist_failed", paypalId: info.captureId,
-        status, payload: { error: String(err) },
-      });
-    }
-  }
+  // The money has moved. A failure here cannot be undone by refusing anything,
+  // so it is logged loudly with every id needed to reconcile by hand, and the
+  // webhook gets a second chance to create the row.
+  const record: OrderRecord = {
+    orderId,
+    paypalOrderId,
+    captureId: info.captureId,
+    status,
+    currency: info.currency || remoteCurrency,
+    subtotalCents: priced.subtotalCents,
+    shippingCents: priced.shippingCents,
+    totalCents: priced.totalCents,
+    shippingMethod: priced.shippingMethod,
+    customer: payload?.customer ?? {},
+    address: payload?.shippingAddress ?? {},
+    lines: priced.lines,
+    raw: captured.body,
+  };
+
+  const saved = await persistCapturedOrder(database, record);
 
   await recordEvent(database, {
     orderId, source: "capture", type: "capture_completed", paypalId: info.captureId,
-    status, payload: { capturedCents, serverCents: priced.totalCents },
+    status, payload: { capturedCents, serverCents: priced.totalCents, persisted: saved.persisted },
   });
 
   return json({
@@ -269,5 +195,8 @@ export const POST: APIRoute = async ({ request, locals }) => {
     shippingCents: priced.shippingCents,
     totalCents: priced.totalCents,
     currency: info.currency || remoteCurrency,
+    // Told the truth rather than hidden: the payment succeeded either way, but
+    // support needs to know if the order row is missing.
+    recorded: saved.persisted,
   });
 };
