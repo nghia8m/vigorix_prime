@@ -13,7 +13,13 @@ export default defineConfig({
   site: "https://vigorixprime.com",
   trailingSlash: "ignore",
   output: "static",
-  adapter: cloudflare({ imageService: "passthrough" }),
+  // platformProxy gives `astro dev` the same runtime bindings the Worker gets
+  // in production (D1 and friends), backed by local miniflare state in
+  // .wrangler/state — no Cloudflare account and no remote database involved.
+  adapter: cloudflare({
+    imageService: "passthrough",
+    platformProxy: { enabled: true },
+  }),
   // mdx        -> long-form product descriptions live in the body of
   //               src/content/products/*.mdx (rendered to static HTML).
   // draftGuard -> aborts a production build while any product is draft: true.
