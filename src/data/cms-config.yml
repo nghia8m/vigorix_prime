@@ -13,8 +13,12 @@ backend:
   name: github
   repo: nghia8m/vigorix_prime
   branch: main
-  # URL of the deployed auth worker (handles GitHub login).
-  base_url: https://vigorixprime-cms-auth.nghia8m.workers.dev
+  # Single sign-on: base_url is rewritten to this site own origin by
+  # src/pages/admin/config.yml.ts, and auth_endpoint points at our endpoint
+  # rather than at GitHub. Pressing "Sign In with GitHub" therefore reuses the
+  # admin password session instead of asking for a GitHub account.
+  base_url: SITE_ORIGIN_PLACEHOLDER
+  auth_endpoint: api/admin/git-auth
 
 # Where uploaded images are stored in the repo, and how they're referenced
 # in the built site. Astro serves everything in /public at the site root.

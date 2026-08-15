@@ -24,14 +24,28 @@ To look at draft products locally, use `npm run build:preview` — it sets
 deployed. The `dist/` produced by that command contains placeholder copy, "SAMPLE"
 images and `TODO` specs; publishing it would put fake data in front of readers.
 
-## Two different admins
+## The admin, in one place
 
-They are separate tools and do not share a login:
+Two screens, **one login**:
 
 | | What it edits | Where | Storage |
 | --- | --- | --- | --- |
-| **Sveltia CMS** | products, articles, site settings | `/admin/index.html` | files in git |
 | **Orders** | order status, tracking | `/admin/orders` | D1 database |
+| **Content CMS** | products, articles, site settings | `/admin/index.html` | files in git |
+
+Sign in once at `/admin/orders` with the email and password below. The CMS then
+signs in from that same session: pressing **Sign In with GitHub** there does not
+go to GitHub at all — it calls `/api/admin/git-auth`, which checks the admin
+cookie and hands the CMS a repository token the server holds.
+
+That token, `GITHUB_CONTENT_TOKEN`, can write to the repository. Anyone who
+learns the admin password can therefore change site content, which is the price
+of not having to manage a second login. The password is hashed, the session
+lasts 8 hours, and `/api/admin/git-auth` refuses anyone who is not already
+signed in.
+
+Locally you can skip all of it and press **Work with Local Repository** instead,
+picking this project’s root folder — the one containing `.git`.
 
 ## Editing content in the admin, locally
 
@@ -71,7 +85,12 @@ anything saved there is committed to the repo forever.
 ADMIN_SESSION_SECRET=<64 hex characters>
 ADMIN_EMAIL=you@example.com
 ADMIN_PASSWORD_HASH=pbkdf2:210000:<salt>:<hash>
+GITHUB_CONTENT_TOKEN=<a GitHub token with repo write access>
 ```
+
+`GITHUB_CONTENT_TOKEN` is only needed for the content CMS. Leave it empty and
+Orders still works; the CMS then says so and you can use “Work with Local
+Repository” instead.
 
 Generate the session secret:
 
