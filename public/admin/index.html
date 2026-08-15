@@ -11,5 +11,171 @@
     <!-- Sveltia CMS (drop-in, Decap-compatible). Reads /admin/config.yml.
          Loaded as a classic script (NOT type=module) per Sveltia's guidance. -->
     <script src="https://unpkg.com/@sveltia/cms/dist/sveltia-cms.js"></script>
+
+    <!-- =====================================================================
+         Shop Products — save-time validation
+         ---------------------------------------------------------------------
+         config.yml already blocks the rules it can express on its own:
+           • images[] empty        -> required: true + min: 1
+           • an image missing alt  -> required: true on the alt subfield
+         The rules below need to compare items against EACH OTHER, or look at a
+         file on disk, which the config language cannot do. They run on save so
+         the editor finds out here, not three minutes later in a failed build.
+
+           preSave  BLOCKS : duplicate variant id, duplicate variant SKU,
+                             a variant pointing at an image index that is not there
+           preSave  WARNS  : no buy link set (allowed in phase 1)
+           postSave WARNS  : image over 400 KB
+
+         Why the size check runs AFTER the save: an image picked in the editor is
+         only written to disk when the entry is saved, so at preSave time a HEAD
+         request for a freshly added image 404s and the check would silently pass
+         — exactly when it matters most. At postSave the file is on disk, so the
+         measurement is real. The warning still arrives long before a build or a
+         deploy, which is what it is for.
+
+         Kept as plain ES5-ish script on purpose: no build step, no bundler, and
+         it still works when the CMS is loaded from the CDN.
+         ===================================================================== -->
+    <script>
+      (function () {
+        var MAX_IMAGE_BYTES = 400 * 1024;
+
+        function toPlain(value) {
+          if (value && typeof value.toJS === "function") return value.toJS();
+          return value;
+        }
+
+        /** Synchronous HEAD request; returns byte size, or null when unknown. */
+        function fileSize(url) {
+          try {
+            var xhr = new XMLHttpRequest();
+            xhr.open("HEAD", url, false); // sync: preSave handlers run synchronously
+            xhr.send(null);
+            if (xhr.status < 200 || xhr.status >= 300) return null;
+            var len = xhr.getResponseHeader("Content-Length");
+            return len ? parseInt(len, 10) : null;
+          } catch (e) {
+            return null;
+          }
+        }
+
+        function duplicates(values) {
+          var seen = {}, dupes = [];
+          values.forEach(function (v) {
+            if (!v) return;
+            var k = String(v).trim().toLowerCase();
+            if (!k) return;
+            if (seen[k]) { if (dupes.indexOf(v) === -1) dupes.push(v); }
+            seen[k] = true;
+          });
+          return dupes;
+        }
+
+        /** Size check, run after the save so the files actually exist on disk. */
+        function oversizedImages(data) {
+          var warnings = [], unknown = 0;
+          (data.images || []).forEach(function (img, i) {
+            if (!img || !img.url) return;
+            var bytes = fileSize(img.url);
+            if (bytes === null) { unknown++; return; }
+            if (bytes > MAX_IMAGE_BYTES)
+              warnings.push("Image " + (i + 1) + " (" + img.url + ") is " +
+                            Math.round(bytes / 1024) + " KB — over the 400 KB guideline. " +
+                            "Re-export it smaller before this product goes live.");
+          });
+          if (unknown)
+            warnings.push(unknown + " image(s) could not be measured (not readable at " +
+                          "their public URL yet). Re-open and save the product to check them.");
+          return warnings;
+        }
+
+        function validateProduct(data) {
+          var errors = [], warnings = [];
+          var variants = data.variants || [];
+          var images = data.images || [];
+
+          var dupIds = duplicates(variants.map(function (v) { return v && v.id; }));
+          if (dupIds.length)
+            errors.push('Variant id used more than once: ' + dupIds.join(", ") +
+                        ". Every variant needs its own id.");
+
+          var dupSkus = duplicates(variants.map(function (v) { return v && v.sku; }));
+          if (dupSkus.length)
+            errors.push('Variant SKU used more than once: ' + dupSkus.join(", ") +
+                        ". Two variants cannot share a SKU.");
+
+          // Variant imageIndex must point at an image that exists.
+          variants.forEach(function (v, i) {
+            var idx = v && v.imageIndex;
+            if (typeof idx === "number" && images.length && (idx < 0 || idx >= images.length))
+              errors.push("Variant " + (v.label || i + 1) + ' points at image ' + idx +
+                          ", but this product only has " + images.length + " image(s).");
+          });
+
+          if (!data.purchaseUrl) {
+            var variantHasUrl = variants.some(function (v) { return v && v.purchaseUrl; });
+            if (!variantHasUrl)
+              warnings.push("No buy link is set, so the buy button will ship disabled. " +
+                            "That is allowed in phase 1 — just be aware the product cannot be bought yet.");
+          }
+
+          return { errors: errors, warnings: warnings };
+        }
+
+        function register() {
+          if (!window.CMS || !window.CMS.registerEventListener) return false;
+
+          window.CMS.registerEventListener({
+            name: "preSave",
+            handler: function (payload) {
+              var entry = payload && payload.entry;
+              var data = toPlain(entry && entry.get ? entry.get("data") : entry && entry.data) || {};
+
+              // Only the Shop Products collection carries these two keys together.
+              if (!("purchaseUrl" in data) || !("images" in data)) return;
+
+              var result = validateProduct(data);
+              // Exposed so the headless test can read what the handler decided.
+              window.__vpValidation = result;
+
+              if (result.errors.length) {
+                var message = "Cannot save this product:\n\n• " + result.errors.join("\n• ");
+                window.alert(message);
+                throw new Error(message);
+              }
+              if (result.warnings.length) {
+                window.alert("Saved with warnings:\n\n• " + result.warnings.join("\n• "));
+              }
+            },
+          });
+
+          // Image weight is measured here, not in preSave — see the note above.
+          window.CMS.registerEventListener({
+            name: "postSave",
+            handler: function (payload) {
+              var entry = payload && payload.entry;
+              var data = toPlain(entry && entry.get ? entry.get("data") : entry && entry.data) || {};
+              if (!("purchaseUrl" in data) || !("images" in data)) return;
+
+              var warnings = oversizedImages(data);
+              window.__vpImageCheck = warnings;
+              if (warnings.length) window.alert("Image check:\n\n• " + warnings.join("\n• "));
+            },
+          });
+
+          window.__vpValidationReady = true;
+          return true;
+        }
+
+        if (!register()) {
+          // The CDN script may still be initialising; retry briefly.
+          var tries = 0;
+          var timer = setInterval(function () {
+            if (register() || ++tries > 100) clearInterval(timer);
+          }, 100);
+        }
+      })();
+    </script>
   </body>
 </html>

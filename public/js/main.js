@@ -4,7 +4,8 @@ document.addEventListener("DOMContentLoaded", function () {
   var nav = document.querySelector(".main-nav");
   if (toggle && nav) {
     toggle.addEventListener("click", function () {
-      nav.classList.toggle("open");
+      var open = nav.classList.toggle("open");
+      toggle.setAttribute("aria-expanded", open ? "true" : "false");
     });
   }
 });

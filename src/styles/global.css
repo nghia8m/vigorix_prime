@@ -13,6 +13,13 @@
   --navy-light: #16a6e0;
   --orange: #ff7a1a;
   --orange-dark: #e9660a;
+  /* Accessible orange. #ff7a1a is only ~2.9:1 against white and #e9660a ~3.3:1
+     — neither passes WCAG AA for body-size text in either direction. This one
+     is 4.7:1, so it is used wherever orange carries text: orange-on-white
+     labels and white-on-orange buttons in the shop. */
+  --orange-deep: #c25100;
+  --orange-deeper: #a44400;
+  --header-h: 68px;
   --white: #ffffff;
   --gray-50: #f5f9fb;
   --gray-100: #eaf1f6;
@@ -243,7 +250,7 @@ img { max-width: 100%; display: block; }
 .card .read-more {
   margin-top: 14px;
   font-weight: 700;
-  color: var(--orange);
+  color: var(--orange-deep); /* AA-contrast orange; see --orange-deep above */
   font-size: 0.9rem;
 }
 
@@ -262,7 +269,7 @@ img { max-width: 100%; display: block; }
 .pick .rank {
   font-size: 1.6rem;
   font-weight: 800;
-  color: var(--orange);
+  color: var(--orange-deep);
   text-align: center;
 }
 .pick h3 { color: var(--navy); font-size: 1.1rem; margin-bottom: 2px; }
@@ -271,8 +278,10 @@ img { max-width: 100%; display: block; }
 /* ---------- Article ---------- */
 .article { padding: 44px 0; }
 .article-wrap { max-width: 820px; margin: 0 auto; }
-.breadcrumb { font-size: 0.85rem; color: var(--gray-400); margin-bottom: 18px; }
-.breadcrumb a { color: var(--navy-light); }
+/* Breadcrumb text and links both carry AA contrast on white, and the links are
+   underlined so they are not distinguished by colour alone. */
+.breadcrumb { font-size: 0.85rem; color: var(--gray-600); margin-bottom: 18px; }
+.breadcrumb a { color: var(--navy); text-decoration: underline; }
 .article h1 {
   font-size: clamp(1.8rem, 4vw, 2.6rem);
   color: var(--navy);
@@ -371,7 +380,7 @@ table.compare td:first-child { font-weight: 700; color: var(--navy); }
 .product .award {
   font-size: 0.78rem;
   font-weight: 700;
-  color: var(--orange);
+  color: var(--orange-deep);
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }
@@ -467,7 +476,8 @@ table.compare td:first-child { font-weight: 700; color: var(--navy); }
   border-top: 1px solid rgba(255, 255, 255, 0.12);
   padding-top: 22px;
   font-size: 0.84rem;
-  color: rgba(255, 255, 255, 0.6);
+  /* 0.6 gave only 4.28:1 on --navy-dark; 0.85 is ~6.8:1 and passes AA. */
+  color: rgba(255, 255, 255, 0.85);
   text-align: center;
 }
 .footer-bottom .disclosure {
@@ -612,3 +622,556 @@ table.compare td:first-child { font-weight: 700; color: var(--navy); }
 .card-grid.cols-3 { grid-template-columns: repeat(3, 1fr); }
 @media (max-width: 860px) { .card-grid.cols-3 { grid-template-columns: 1fr 1fr; } }
 @media (max-width: 560px) { .card-grid.cols-3 { grid-template-columns: 1fr; } }
+
+/* ===========================================================================
+   SHOP — products Vigorix Prime sells itself
+   ---------------------------------------------------------------------------
+   Everything below belongs to /shop, /shop/<product> and the own-range strip on
+   the homepage. The editorial styles above are untouched apart from the orange
+   contrast fix, so review pages keep their existing look.
+   =========================================================================== */
+
+/* [hidden] must beat the display:flex/grid rules further down, otherwise the
+   buy button's disabled twin would stay visible. */
+[hidden] { display: none !important; }
+
+.sr-only {
+  position: absolute;
+  width: 1px; height: 1px;
+  padding: 0; margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* ---------- Header: Shop CTA + active state ---------- */
+.main-nav a.active { background: rgba(255, 255, 255, 0.16); }
+/* White on --orange measures only 2.61:1 (and 3.30:1 on --orange-dark), well
+   under the 4.5:1 this 14.7px/600 label needs. Keeping the brand orange and
+   flipping the label to near-black gives 5.96:1 / 4.72:1 instead. */
+.main-nav a.cta {
+  background: var(--orange);
+  color: var(--gray-900);
+}
+.main-nav a.cta:hover,
+.main-nav a.cta.active {
+  background: var(--orange-dark);
+  color: var(--gray-900);
+}
+.main-nav a:focus-visible {
+  outline: 3px solid var(--white);
+  outline-offset: 2px;
+}
+
+/* ---------- "Our product" labelling ----------
+   Deliberately unlike the neutral grey .tag used for editorial categories: an
+   own-brand item must never read as an independently reviewed pick. */
+.tag--own {
+  background: var(--navy) !important;
+  color: var(--white) !important;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.tag--own::before {
+  content: "";
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  background: var(--orange);
+}
+.tag--badge {
+  display: inline-block;
+  background: var(--gray-100);
+  color: var(--navy-dark);
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding: 4px 10px;
+  border-radius: 20px;
+}
+
+/* ---------- Own-product card ---------- */
+.owned-product { border-color: var(--navy-light); }
+.owned-product .card-thumb {
+  background: var(--gray-100);
+  display: block;
+  height: 200px;
+}
+.owned-product .card-thumb img { object-fit: contain; }
+.owned-product h3 a { color: var(--navy); }
+.owned-product h3 a:hover { color: var(--orange-deep); }
+.own-price { margin-top: 12px; display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.own-price-now { font-size: 1.25rem; font-weight: 800; color: var(--navy-dark); }
+.own-price-was { color: var(--gray-600); font-size: 0.95rem; }
+.own-price-out { color: #b23838; font-weight: 700; font-size: 0.85rem; }
+.btn-shop {
+  margin-top: 14px;
+  align-self: flex-start;
+  background: var(--orange-deep);
+  padding: 11px 22px;
+  font-size: 0.95rem;
+}
+.btn-shop:hover { background: var(--orange-deeper); }
+
+/* ---------- Homepage own-range strip ---------- */
+.section-own { background: var(--gray-50); }
+.own-range-note {
+  margin: -12px 0 22px;
+  color: var(--gray-700);
+  font-size: 0.95rem;
+  max-width: 70ch;
+}
+/* --orange-deep is 4.70:1 on white but only 4.43:1 on --gray-50, which this
+   link sits on. --orange-deeper is 6.17:1 / 5.82:1 and passes on both. */
+.read-more--strong { color: var(--orange-deeper); font-weight: 700; }
+
+/* ---------- Shop listing ---------- */
+.shop-notice {
+  background: #fff6ed;
+  border: 1px solid #f7c99b;
+  border-left: 5px solid var(--orange-deep);
+  border-radius: var(--radius);
+  padding: 16px 20px;
+  margin-bottom: 28px;
+  color: var(--gray-900);
+  max-width: 78ch;
+}
+.shop-notice--compact { font-size: 0.94rem; margin: 4px 0 24px; }
+/* Body-copy links: AA contrast plus an underline, so they are not identified by
+   colour alone (the default --navy-light only reaches 2.8:1 on white). */
+.shop-notice a,
+.own-range-note a,
+.own-aside-note a,
+.pd-prose a,
+.pd-related a {
+  color: var(--navy);
+  text-decoration: underline;
+}
+.shop-notice a:hover,
+.own-range-note a:hover,
+.own-aside-note a:hover,
+.pd-prose a:hover,
+.pd-related a:hover { color: var(--orange-deep); }
+.shop-empty { color: var(--gray-700); }
+.shop-legal {
+  margin-top: 34px;
+  font-size: 0.86rem;
+  color: var(--gray-600);
+  max-width: 78ch;
+}
+.shop-page { padding: 28px 0 56px; }
+
+/* ---------- Product detail: the two-column grid ----------
+   Gallery, buy panel and details are children of ONE grid container, so the
+   sticky panel is bounded by the grid row and stops at the end of the left-hand
+   content instead of sliding over the footer.
+   No ancestor of .pd-buy may set overflow to anything but visible — a single
+   overflow:hidden anywhere up the chain silently disables position:sticky. */
+.pd-grid {
+  display: grid;
+  grid-template-columns: 1.6fr minmax(360px, 420px);
+  grid-template-rows: auto 1fr;
+  column-gap: 40px;
+  row-gap: 28px;
+  align-items: start;
+}
+.pd-gallery { grid-column: 1; grid-row: 1; min-width: 0; }
+.pd-details { grid-column: 1; grid-row: 2; min-width: 0; }
+.pd-buy {
+  grid-column: 2;
+  grid-row: 1 / -1;      /* travel the full height of the left-hand content */
+  position: sticky;
+  top: calc(var(--header-h) + 16px); /* the site header is sticky too */
+  align-self: start;      /* without this the grid item stretches and never moves */
+}
+
+.pd-section { margin-top: 38px; }
+.pd-section:first-child { margin-top: 8px; }
+.pd-section h2 {
+  font-size: 1.45rem;
+  color: var(--navy);
+  margin-bottom: 14px;
+  scroll-margin-top: calc(var(--header-h) + 16px);
+}
+.pd-specs th {
+  text-align: left;
+  width: 38%;
+  color: var(--navy);
+  background: var(--gray-50);
+}
+
+/* Long description authored in the MDX body */
+.pd-prose h2 {
+  font-size: 1.45rem;
+  color: var(--navy);
+  margin: 34px 0 12px;
+  scroll-margin-top: calc(var(--header-h) + 16px);
+}
+.pd-prose h3 { font-size: 1.12rem; color: var(--navy-dark); margin: 22px 0 8px; }
+.pd-prose p { margin-bottom: 14px; }
+.pd-prose ul, .pd-prose ol { margin: 0 0 18px 22px; }
+.pd-prose li { margin-bottom: 6px; }
+.pd-inline-img {
+  border-radius: var(--radius);
+  border: 1px solid var(--gray-200);
+  margin: 20px 0;
+  width: 100%;
+  height: auto;
+  max-width: 520px;
+}
+
+.pd-related ul { list-style: none; }
+.pd-related li { padding: 10px 0; border-bottom: 1px solid var(--gray-200); }
+.pd-related-note { color: var(--gray-600); font-size: 0.9rem; margin-bottom: 10px; }
+.pd-related-cat { color: var(--gray-600); font-size: 0.9rem; }
+
+/* ---------- Gallery ---------- */
+.gallery {
+  display: grid;
+  grid-template-columns: 84px 1fr;
+  gap: 14px;
+  align-items: start;
+}
+.gallery-main { grid-column: 2; min-width: 0; }
+.gallery-thumbs {
+  grid-column: 1;
+  grid-row: 1;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.gallery-track {
+  list-style: none;
+  display: flex;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  scrollbar-width: none;
+  border: 1px solid var(--gray-200);
+  border-radius: var(--radius);
+  background: var(--gray-50);
+}
+.gallery-track::-webkit-scrollbar { display: none; }
+.gallery-track:focus-visible { outline: 3px solid var(--navy-light); outline-offset: 2px; }
+.gallery-slide { flex: 0 0 100%; scroll-snap-align: start; }
+.gallery-zoom {
+  display: block;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: zoom-in;
+}
+.gallery-zoom img {
+  width: 100%;
+  height: auto;
+  aspect-ratio: 1 / 1;
+  object-fit: contain;
+}
+.gallery-zoom:focus-visible { outline: 3px solid var(--navy-light); outline-offset: -3px; }
+.gallery-counter {
+  margin-top: 8px;
+  font-size: 0.85rem;
+  color: var(--gray-600);
+  text-align: center;
+}
+.gallery-thumb {
+  width: 84px;
+  height: 84px;
+  padding: 0;
+  border: 2px solid var(--gray-200);
+  border-radius: 8px;
+  background: var(--gray-50);
+  cursor: pointer;
+  overflow: hidden;
+}
+.gallery-thumb img { width: 100%; height: 100%; object-fit: contain; }
+.gallery-thumb.active { border-color: var(--navy-light); }
+.gallery-thumb:focus-visible { outline: 3px solid var(--navy-light); outline-offset: 2px; }
+.gallery-video { grid-column: 2; margin-top: 14px; }
+.gallery-video video { width: 100%; height: auto; border-radius: var(--radius); }
+
+.lightbox {
+  border: 0;
+  padding: 0;
+  background: transparent;
+  max-width: min(92vw, 900px);
+  max-height: 92vh;
+}
+.lightbox::backdrop { background: rgba(10, 25, 35, 0.82); }
+.lightbox img { width: 100%; height: auto; border-radius: var(--radius); background: var(--white); }
+.lightbox-close {
+  position: absolute;
+  top: 8px; right: 8px;
+  width: 40px; height: 40px;
+  border: 0;
+  border-radius: 50%;
+  background: var(--navy);
+  color: var(--white);
+  font-size: 1.5rem;
+  line-height: 1;
+  cursor: pointer;
+}
+.lightbox-close:focus-visible { outline: 3px solid var(--white); outline-offset: 2px; }
+
+/* ---------- Buy panel ---------- */
+.buybox {
+  border: 1px solid var(--gray-200);
+  border-radius: var(--radius);
+  padding: 22px;
+  background: var(--white);
+  box-shadow: var(--shadow);
+}
+.buybox-head { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
+.buybox-head .tag { margin-bottom: 0; }
+.buybox-name { font-size: 1.5rem; color: var(--navy); line-height: 1.25; margin-bottom: 6px; }
+.buybox-sub { color: var(--gray-700); font-size: 0.95rem; margin-bottom: 14px; }
+.buybox-price { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+.price-now { font-size: 1.9rem; font-weight: 800; color: var(--navy-dark); }
+.price-was { color: var(--gray-600); font-size: 1.05rem; }
+.buybox-meta {
+  font-size: 0.88rem;
+  color: var(--gray-700);
+  margin: 6px 0 18px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.stock-dot { width: 9px; height: 9px; border-radius: 50%; background: var(--gray-400); }
+.stock-dot.stock-in { background: #2f7d36; }
+.stock-dot.stock-out { background: #b23838; }
+.stock-dot.stock-preorder { background: var(--orange-deep); }
+
+.variant-form { margin-bottom: 18px; }
+.variant-fieldset { border: 0; padding: 0; }
+.variant-fieldset legend {
+  font-weight: 700;
+  color: var(--navy);
+  font-size: 0.92rem;
+  margin-bottom: 8px;
+  padding: 0;
+}
+.variant-options { display: flex; flex-wrap: wrap; gap: 8px; }
+.variant-option { cursor: pointer; }
+.variant-option input {
+  position: absolute;
+  opacity: 0;
+  width: 1px; height: 1px;
+}
+.variant-option span {
+  display: inline-block;
+  border: 2px solid var(--gray-200);
+  border-radius: 8px;
+  padding: 8px 16px;
+  font-weight: 600;
+  font-size: 0.92rem;
+  color: var(--gray-900);
+  background: var(--white);
+}
+.variant-option input:checked + span {
+  border-color: var(--navy);
+  background: var(--navy);
+  color: var(--white);
+}
+.variant-option input:focus-visible + span {
+  outline: 3px solid var(--navy-light);
+  outline-offset: 2px;
+}
+.variant-option.is-out { cursor: not-allowed; }
+.variant-option.is-out span {
+  color: var(--gray-400);
+  background: var(--gray-50);
+  text-decoration: line-through;
+}
+
+.qty-row { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
+.qty-label { font-weight: 700; color: var(--navy); font-size: 0.92rem; }
+.qty-input {
+  width: 84px;
+  padding: 9px 10px;
+  border: 1px solid var(--gray-200);
+  border-radius: 8px;
+  font-family: inherit;
+  font-size: 1rem;
+}
+.buybox-total {
+  display: flex;
+  justify-content: space-between;
+  font-weight: 700;
+  color: var(--navy-dark);
+  border-top: 1px solid var(--gray-200);
+  padding-top: 12px;
+  margin-bottom: 14px;
+}
+
+/* White on --orange-deep = 4.7:1, so the primary action passes WCAG AA. */
+.buy-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  background: var(--orange-deep);
+  color: var(--white);
+  font-weight: 700;
+  font-size: 1.02rem;
+  padding: 14px 20px;
+  border: 0;
+  border-radius: 50px;
+  cursor: pointer;
+  font-family: inherit;
+  text-align: center;
+}
+.buy-btn:hover { background: var(--orange-deeper); color: var(--white); }
+.buy-btn:focus-visible { outline: 3px solid var(--navy); outline-offset: 3px; }
+.buy-btn[disabled] {
+  background: var(--gray-200);
+  color: var(--gray-700);
+  cursor: not-allowed;
+}
+.buy-btn-secondary {
+  display: block;
+  width: 100%;
+  text-align: center;
+  margin-top: 10px;
+  padding: 12px 20px;
+  border: 2px solid var(--navy);
+  border-radius: 50px;
+  color: var(--navy);
+  font-weight: 700;
+  font-size: 0.95rem;
+}
+.buy-btn-secondary:hover { background: var(--navy); color: var(--white); }
+
+.buybox-handoff {
+  margin-top: 10px;
+  font-size: 0.85rem;
+  color: var(--gray-700);
+  background: var(--gray-50);
+  border-radius: 8px;
+  padding: 10px 12px;
+}
+.buybox-ship { margin-top: 12px; font-size: 0.86rem; color: var(--gray-700); }
+
+.trust-grid {
+  list-style: none;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-top: 18px;
+  border-top: 1px solid var(--gray-200);
+  padding-top: 16px;
+}
+.trust-item {
+  display: grid;
+  grid-template-columns: 20px 1fr;
+  grid-template-rows: auto auto;
+  column-gap: 8px;
+  align-items: start;
+}
+.trust-item svg { grid-row: 1 / span 2; color: var(--navy); margin-top: 2px; }
+.trust-title { font-weight: 700; font-size: 0.85rem; color: var(--navy-dark); }
+.trust-sub { font-size: 0.78rem; color: var(--gray-600); line-height: 1.4; }
+
+.buybox-legal {
+  margin-top: 16px;
+  font-size: 0.78rem;
+  color: var(--gray-600);
+  line-height: 1.5;
+}
+
+/* Mobile-only price + buy bar. Hidden by default so it never appears on desktop.
+   position: fixed relies on no ancestor creating a containing block
+   (transform / filter / perspective) — none of the shop styles do. */
+.buybar { display: none; }
+
+/* ---------- Own-range block at the foot of a review ---------- */
+.own-aside {
+  border: 1px solid var(--gray-200);
+  border-left: 5px solid var(--navy);
+  border-radius: var(--radius);
+  background: var(--gray-50);
+  padding: 22px;
+  margin: 32px 0;
+}
+.own-aside h2 { font-size: 1.25rem; color: var(--navy); margin: 10px 0 8px; }
+.own-aside-note { font-size: 0.92rem; color: var(--gray-700); margin-bottom: 14px; }
+.own-aside-list { list-style: none; margin: 0; }
+.own-aside-list li {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 4px 12px;
+  padding: 12px 0;
+  border-top: 1px solid var(--gray-200);
+}
+.own-aside-list a { font-weight: 700; color: var(--navy); }
+.own-aside-price { font-weight: 800; color: var(--navy-dark); }
+.own-aside-sub { grid-column: 1 / -1; font-size: 0.9rem; color: var(--gray-700); }
+
+/* ---------- Shop responsive ---------- */
+/* Tablet: still two columns, narrower buy panel. */
+@media (max-width: 1023px) {
+  .pd-grid { grid-template-columns: 1.35fr minmax(300px, 340px); column-gap: 26px; }
+  .buybox { padding: 18px; }
+  .buybox-name { font-size: 1.3rem; }
+  .price-now { font-size: 1.6rem; }
+  .gallery { grid-template-columns: 68px 1fr; }
+  .gallery-thumb { width: 68px; height: 68px; }
+}
+
+/* Mobile: one column, thumbnails run horizontally, purchase collapses to a
+   pinned bar with only price + buy. The full controls stay in the flow above it
+   so a variant can still be chosen. */
+@media (max-width: 767px) {
+  .pd-grid { grid-template-columns: 1fr; }
+  .pd-gallery, .pd-details, .pd-buy { grid-column: 1; }
+  .pd-gallery { grid-row: 1; }
+  .pd-buy { grid-row: 2; position: static; }
+  .pd-details { grid-row: 3; }
+  .buybox { box-shadow: none; }
+
+  .gallery { grid-template-columns: 1fr; }
+  .gallery-main { grid-column: 1; }
+  .gallery-thumbs {
+    grid-column: 1;
+    grid-row: auto;
+    flex-direction: row;
+    overflow-x: auto;
+    padding-bottom: 4px;
+  }
+  .gallery-thumb { width: 64px; height: 64px; flex: 0 0 auto; }
+  .gallery-video { grid-column: 1; }
+
+  .buybar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    position: fixed;
+    left: 0; right: 0; bottom: 0;
+    z-index: 90;
+    background: var(--white);
+    border-top: 1px solid var(--gray-200);
+    box-shadow: 0 -4px 16px rgba(12, 111, 158, 0.14);
+    padding: 10px 16px calc(10px + env(safe-area-inset-bottom));
+  }
+  .buybar-price { display: flex; flex-direction: column; line-height: 1.15; }
+  .buybar .price-now { font-size: 1.25rem; }
+  .buybar .price-was { font-size: 0.85rem; }
+  .buybar .buy-btn { width: auto; flex: 1; padding: 12px 18px; }
+
+  /* Reserve room so the pinned bar never covers page content or the footer. */
+  body.has-buybar { padding-bottom: 84px; }
+  .trust-grid { grid-template-columns: 1fr 1fr; }
+}
+
+@media (max-width: 420px) {
+  .trust-grid { grid-template-columns: 1fr; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  .card:hover { transform: none; }
+  .btn:hover { transform: none; }
+}

@@ -1,0 +1,338 @@
+---
+// The purchase block: sticky right-hand column on desktop, inline on mobile,
+// plus a fixed price + buy bar for small screens.
+//
+// PHASE 1 rules encoded here:
+//  • the buy button points at `purchaseUrl` (or the selected variant's override)
+//    — this component is the only place that destination is assembled;
+//  • when the destination is off-domain, the hand-off is stated under the button
+//    with the domain name, because an unexpected domain switch at payment time
+//    is a classic abandonment cause;
+//  • quantity is rendered ONLY when the destination can actually receive it
+//    (`quantityParam`), never as a control that silently does nothing;
+//  • no cart state of any kind is created.
+import {
+  formatMoney,
+  priceOf,
+  skuOf,
+  stockOf,
+  defaultVariant,
+  buildPurchaseUrl,
+  externalHost,
+  type ProductData,
+} from "../lib/products";
+
+interface Props {
+  data: ProductData;
+}
+
+const { data } = Astro.props;
+
+const variant = defaultVariant(data);
+const price = priceOf(data, variant);
+const stock = stockOf(data, variant);
+const sku = skuOf(data, variant);
+const url = buildPurchaseUrl(data, variant, 1);
+const host = externalHost(url);
+const showQuantity = Boolean(data.quantityParam);
+const purchasable = stock !== "out" && Boolean(url);
+
+// Is a destination configured at all? If not, no variant can ever be buyable,
+// so the anchor is never rendered — an <a> without href is not a crawlable link
+// and would sit in the markup doing nothing. Only the disabled button ships.
+const hasAnyUrl = Boolean(data.purchaseUrl) || data.variants.some((v) => v.purchaseUrl);
+// Fallback href for the anchor when the default variant happens to be out of
+// stock: the element is hidden, but it must still be a real link.
+const anchorHref =
+  url ||
+  buildPurchaseUrl(data, data.variants.find((v) => v.purchaseUrl) ?? null, 1) ||
+  data.purchaseUrl;
+
+const STOCK_LABEL: Record<string, string> = {
+  in: "In stock",
+  out: "Out of stock",
+  preorder: "Available to pre-order",
+};
+
+const buyLabel = (s: string) => (s === "preorder" ? "Pre-order now" : "Buy now");
+
+// Client mirror of everything the picker needs. Serialising it as JSON keeps
+// data out of generated JavaScript strings.
+const clientData = {
+  currency: data.currency,
+  basePrice: data.price,
+  baseSku: data.sku,
+  baseStock: data.stock,
+  purchaseUrl: data.purchaseUrl,
+  // Key used in OUR url (?size=m) — the human-readable kind of variant.
+  variantType: data.variantType,
+  // Key the DESTINATION accepts, if any. Different concern, different field.
+  variantParam: data.variantParam,
+  quantityParam: data.quantityParam,
+  compareAt: data.compareAt,
+  variants: data.variants,
+};
+
+const TRUST_ICONS: Record<string, string> = {
+  shield: "M12 2 4 5v6c0 5 3.4 9.2 8 11 4.6-1.8 8-6 8-11V5l-8-3Z",
+  truck: "M3 6h11v9H3V6Zm11 4h4l3 3v2h-7v-5ZM7 19a2 2 0 1 0 0-4 2 2 0 0 0 0 4Zm10 0a2 2 0 1 0 0-4 2 2 0 0 0 0 4Z",
+  refresh: "M20 12a8 8 0 1 1-2.3-5.6M20 4v5h-5",
+  support: "M12 3a8 8 0 0 0-8 8v5a3 3 0 0 0 3 3h2v-7H6v-1a6 6 0 0 1 12 0v1h-3v7h2a3 3 0 0 0 3-3v-5a8 8 0 0 0-8-8Z",
+  leaf: "M20 4C10 4 4 9 4 16c0 2 1 4 1 4s2-8 15-12c0 0-6 3-9 9 6 1 9-4 9-13Z",
+  lock: "M6 10V8a6 6 0 1 1 12 0v2h1v11H5V10h1Zm2 0h8V8a4 4 0 0 0-8 0v2Z",
+};
+---
+<div class="buybox" data-buybox>
+  <script type="application/json" data-product-json set:html={JSON.stringify(clientData)} />
+
+  <div class="buybox-head">
+    <span class="tag tag--own">Our product</span>
+    {data.badges.map((b) => <span class="tag tag--badge">{b}</span>)}
+  </div>
+
+  <h1 class="buybox-name">{data.name}</h1>
+  {data.subtitle && <p class="buybox-sub">{data.subtitle}</p>}
+
+  <p class="buybox-price">
+    <span class="price-now" data-price-now>{formatMoney(price, data.currency)}</span>
+    <s class="price-was" data-price-was hidden={!(data.compareAt && data.compareAt > price)}>
+      {data.compareAt ? formatMoney(data.compareAt, data.currency) : ""}
+    </s>
+  </p>
+
+  <p class="buybox-meta">
+    <span class:list={["stock-dot", `stock-${stock}`]} data-stock-class aria-hidden="true"></span>
+    <span data-stock-label>{STOCK_LABEL[stock]}</span>
+    {sku && <> &middot; SKU <span data-sku>{sku}</span></>}
+  </p>
+
+  {data.variants.length > 0 && (
+    <form class="variant-form" data-variant-form onsubmit="return false">
+      <fieldset class="variant-fieldset">
+        <legend>{data.variantLegend || `Choose a ${data.variantType ?? "option"}`}</legend>
+        <div class="variant-options">
+          {data.variants.map((v) => (
+            <label class:list={["variant-option", { "is-out": v.stock === "out" }]}>
+              <input
+                type="radio"
+                name="variant"
+                value={v.value}
+                data-variant-input
+                data-variant-id={v.id}
+                checked={variant?.id === v.id}
+                disabled={v.stock === "out"}
+              />
+              <span>{v.label}</span>
+            </label>
+          ))}
+        </div>
+      </fieldset>
+    </form>
+  )}
+
+  {showQuantity && (
+    <div class="qty-row">
+      <label class="qty-label" for="qty">Quantity</label>
+      <input class="qty-input" id="qty" name="qty" type="number" inputmode="numeric" min="1" max="99" step="1" value="1" data-qty />
+    </div>
+  )}
+
+  {showQuantity && (
+    <p class="buybox-total">
+      <span>Total</span>
+      <span data-total>{formatMoney(price, data.currency)}</span>
+    </p>
+  )}
+
+  {hasAnyUrl && (
+    <a class="buy-btn" href={anchorHref} data-buy hidden={!purchasable} target="_blank" rel="noopener">
+      <span data-buy-label>{buyLabel(stock)}</span>
+    </a>
+  )}
+  <button class="buy-btn" type="button" disabled data-buy-disabled hidden={purchasable}>
+    <span data-buy-disabled-label>{stock === "out" ? "Out of stock" : "Purchase link coming soon"}</span>
+  </button>
+
+  <p class="buybox-handoff" data-handoff hidden={!(purchasable && host)}>
+    Checkout is completed on <strong data-handoff-host>{host}</strong>, not on vigorixprime.com.
+    Your order, payment and delivery are handled there.
+  </p>
+
+  <a class="buy-btn-secondary" href="/contact">Ask us about this product</a>
+
+  {data.shipTo.length > 0 && (
+    <p class="buybox-ship">Ships to: {data.shipTo.join(", ")}</p>
+  )}
+
+  {data.trust.length > 0 && (
+    <ul class="trust-grid">
+      {data.trust.slice(0, 4).map((t) => (
+        <li class="trust-item">
+          <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" focusable="false">
+            <path d={TRUST_ICONS[t.icon] ?? TRUST_ICONS.shield} fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round" stroke-linecap="round" />
+          </svg>
+          <span class="trust-title">{t.title}</span>
+          {t.sub && <span class="trust-sub">{t.sub}</span>}
+        </li>
+      ))}
+    </ul>
+  )}
+
+  <p class="buybox-legal">
+    Individual results vary. This is a general wellness product, not a medical
+    device or medicine, and nothing here is medical advice. If you have a specific
+    health concern, an existing condition, or you are unsure whether this product
+    suits you, speak to a qualified healthcare professional first.
+  </p>
+</div>
+
+<!-- Mobile only: price + buy, pinned to the bottom of the viewport. -->
+<div class="buybar" data-buybar>
+  <div class="buybar-price">
+    <span class="price-now" data-price-now>{formatMoney(price, data.currency)}</span>
+    <s class="price-was" data-price-was hidden={!(data.compareAt && data.compareAt > price)}>
+      {data.compareAt ? formatMoney(data.compareAt, data.currency) : ""}
+    </s>
+  </div>
+  {hasAnyUrl && (
+    <a class="buy-btn" href={anchorHref} data-buy hidden={!purchasable} target="_blank" rel="noopener">
+      <span data-buy-label>{buyLabel(stock)}</span>
+    </a>
+  )}
+  <button class="buy-btn" type="button" disabled data-buy-disabled hidden={purchasable}>
+    <span data-buy-disabled-label>{stock === "out" ? "Out of stock" : "Coming soon"}</span>
+  </button>
+</div>
+
+<script is:inline>
+  (function () {
+    var root = document.querySelector("[data-buybox]");
+    if (!root) return;
+
+    var raw = root.querySelector("[data-product-json]");
+    var D = JSON.parse(raw.textContent);
+
+    var all = function (sel) {
+      return Array.prototype.slice.call(document.querySelectorAll(sel));
+    };
+    var inputs = all("[data-variant-input]");
+    var qtyInput = document.querySelector("[data-qty]");
+
+    var money = function (n) {
+      return new Intl.NumberFormat("en-US", {
+        style: "currency",
+        currency: D.currency,
+        minimumFractionDigits: Number.isInteger(n) ? 0 : 2,
+        maximumFractionDigits: 2,
+      }).format(n);
+    };
+
+    var STOCK_LABEL = { in: "In stock", out: "Out of stock", preorder: "Available to pre-order" };
+
+    function selected() {
+      for (var i = 0; i < inputs.length; i++) if (inputs[i].checked) {
+        for (var j = 0; j < D.variants.length; j++)
+          if (D.variants[j].id === inputs[i].getAttribute("data-variant-id")) return D.variants[j];
+      }
+      return null;
+    }
+
+    function purchaseUrl(v, qty) {
+      var base = (v && v.purchaseUrl) || D.purchaseUrl;
+      if (!base) return "";
+      try {
+        var u = new URL(base, window.location.origin);
+        if (D.variantParam && v) u.searchParams.set(D.variantParam, v.value);
+        if (D.quantityParam && qty > 1) u.searchParams.set(D.quantityParam, String(qty));
+        return u.href;
+      } catch (e) {
+        return base;
+      }
+    }
+
+    function hostOf(url) {
+      if (!url) return "";
+      try {
+        var h = new URL(url, window.location.origin).hostname.replace(/^www\./, "");
+        return h === window.location.hostname.replace(/^www\./, "") ? "" : h;
+      } catch (e) {
+        return "";
+      }
+    }
+
+    function render(pushUrl) {
+      var v = selected();
+      var qty = qtyInput ? Math.max(1, Math.min(99, parseInt(qtyInput.value, 10) || 1)) : 1;
+      var price = D.basePrice + (v ? v.priceDelta : 0);
+      var stock = v ? v.stock : D.baseStock;
+      var sku = (v && v.sku) || D.baseSku;
+      var url = purchaseUrl(v, qty);
+      var host = hostOf(url);
+      var buyable = stock !== "out" && !!url;
+
+      all("[data-price-now]").forEach(function (el) { el.textContent = money(price); });
+      all("[data-price-was]").forEach(function (el) {
+        var show = D.compareAt && D.compareAt > price;
+        el.hidden = !show;
+        if (show) el.textContent = money(D.compareAt);
+      });
+      all("[data-sku]").forEach(function (el) { el.textContent = sku; });
+      all("[data-stock-label]").forEach(function (el) { el.textContent = STOCK_LABEL[stock]; });
+      all("[data-stock-class]").forEach(function (el) {
+        el.className = "stock-dot stock-" + stock;
+      });
+      all("[data-total]").forEach(function (el) { el.textContent = money(price * qty); });
+
+      all("[data-buy]").forEach(function (el) {
+        el.hidden = !buyable;
+        if (buyable) el.setAttribute("href", url);
+        else el.removeAttribute("href");
+      });
+      all("[data-buy-label]").forEach(function (el) {
+        el.textContent = stock === "preorder" ? "Pre-order now" : "Buy now";
+      });
+      all("[data-buy-disabled]").forEach(function (el) { el.hidden = buyable; });
+      all("[data-buy-disabled-label]").forEach(function (el) {
+        el.textContent = stock === "out" ? "Out of stock" : "Purchase link coming soon";
+      });
+      all("[data-handoff]").forEach(function (el) { el.hidden = !(buyable && host); });
+      all("[data-handoff-host]").forEach(function (el) { el.textContent = host; });
+
+      if (v && window.vpGallery) window.vpGallery.show(v.imageIndex || 0);
+
+      // Reflect the choice in the URL so a link can be shared.
+      if (pushUrl && v && D.variants.length) {
+        var key = D.variantType || "variant";
+        var next = new URL(window.location.href);
+        next.searchParams.set(key, v.value);
+        history.replaceState(null, "", next.pathname + next.search + next.hash);
+      }
+    }
+
+    // Restore a shared selection (?size=m) before anything else runs.
+    (function preselect() {
+      if (!inputs.length) return;
+      var key = D.variantType || "variant";
+      var want = new URL(window.location.href).searchParams.get(key);
+      if (!want) return;
+      for (var i = 0; i < inputs.length; i++) {
+        if (inputs[i].value === want && !inputs[i].disabled) {
+          inputs[i].checked = true;
+          render(false);
+          return;
+        }
+      }
+    })();
+
+    inputs.forEach(function (el) {
+      el.addEventListener("change", function () { render(true); });
+    });
+    if (qtyInput) {
+      qtyInput.addEventListener("input", function () { render(false); });
+      qtyInput.addEventListener("change", function () {
+        qtyInput.value = String(Math.max(1, Math.min(99, parseInt(qtyInput.value, 10) || 1)));
+        render(false);
+      });
+    }
+  })();
+</script>

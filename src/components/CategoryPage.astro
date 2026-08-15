@@ -21,6 +21,7 @@ const articles = (
 ).sort((x, y) => x.data.order - y.data.order);
 ---
 <BaseLayout title={metaTitle} description={metaDescription} path={path}>
+  <main>
   <section class="hero" style="padding:56px 0;">
     <div class="container">
       <h1 set:html={heading} />
@@ -30,6 +31,7 @@ const articles = (
 
   <section class="section">
     <div class="container">
+      <h2 class="sr-only">{category} reviews</h2>
       <div class="card-grid">
         {articles.map((a) => (
           <a class="card" href={`/${a.id}`}>
@@ -49,4 +51,5 @@ const articles = (
       </div>
     </div>
   </section>
+  </main>
 </BaseLayout>

@@ -17,6 +17,7 @@ interface Props {
   ogType?: string;
   ogImage?: string; // absolute URL or site-relative path
   jsonLd?: unknown[]; // extra schema.org blocks (breadcrumb, itemlist, faq...)
+  bodyClass?: string; // e.g. "has-buybar" so a fixed bar can reserve space
 }
 
 const {
@@ -26,6 +27,7 @@ const {
   ogType = "website",
   ogImage,
   jsonLd = [],
+  bodyClass,
 } = Astro.props;
 
 const canonical = new URL(path, SITE_URL).href;
@@ -93,7 +95,7 @@ const baseGraph = {
        network verification meta tags (Awin, Impact) and analytics snippets. -->
   <Fragment set:html={site.code.customHead} />
 </head>
-<body>
+<body class={bodyClass}>
   <Header />
   <slot />
   <Footer />

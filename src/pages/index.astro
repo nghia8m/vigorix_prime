@@ -1,6 +1,8 @@
 ---
 import { getCollection } from "astro:content";
 import BaseLayout from "../layouts/BaseLayout.astro";
+import OwnProductCard from "../components/OwnProductCard.astro";
+import { getShopProducts } from "../lib/products";
 import site from "../data/site.json";
 
 const articles = (await getCollection("articles", ({ data }) => !data.draft)).sort(
@@ -20,12 +22,17 @@ const picks = articles.slice(0, 4);
 const latest = articles.slice(-3).map(card);
 
 const heroSlides = site.hero?.slides ?? [];
+
+// Products we sell ourselves. Shown in their own strip, deliberately never
+// merged into #best-picks or any editorial ranking.
+const ownProducts = (await getShopProducts()).slice(0, 3);
 ---
 <BaseLayout
   title="Vigorix Prime — Men's Health, Supplement & Grooming Reviews"
   description="Independent, research-backed reviews and best-picks guides for men's supplements, performance products and grooming gear. Find what actually works — without the hype."
   path="/"
 >
+  <main>
   <!-- HERO -->
   <section class="hero">
     {heroSlides.length > 0 && (
@@ -67,7 +74,7 @@ const heroSlides = site.hero?.slides ?? [];
     <div class="container">
       <div class="section-head">
         <h2>Fresh Off the Test Bench</h2>
-        <a href="#best-picks" class="read-more" style="color:var(--orange);font-weight:700;">View all &rarr;</a>
+        <a href="#best-picks" class="read-more read-more--strong">View all &rarr;</a>
       </div>
       <div class="card-grid">
         {cards.map((c) => (
@@ -86,6 +93,30 @@ const heroSlides = site.hero?.slides ?? [];
       </div>
     </div>
   </section>
+
+  <!-- OUR OWN RANGE — products Vigorix Prime sells directly.
+       Sits between #latest and #deals, and is worded so it can never be read as
+       an editorial recommendation. Every card carries the "Our product" label. -->
+  {ownProducts.length > 0 && (
+    <section class="section section-own" id="our-range">
+      <div class="container">
+        <div class="section-head">
+          <h2>From Our Own Range</h2>
+          <a href="/shop" class="read-more read-more--strong">Visit the shop &rarr;</a>
+        </div>
+        <p class="own-range-note">
+          Health Care products we sell ourselves. They are not reviewed, scored or
+          ranked by our editorial team — see our
+          <a href="/affiliate-disclosure">disclosure</a>.
+        </p>
+        <div class="card-grid cols-3 owned-grid">
+          {ownProducts.map((product) => (
+            <OwnProductCard product={product} />
+          ))}
+        </div>
+      </div>
+    </section>
+  )}
 
   <!-- DEALS BANNER (full-width promo strip, visually distinct from review cards) -->
   <section class="section" id="deals">
@@ -144,4 +175,5 @@ const heroSlides = site.hero?.slides ?? [];
       </div>
     </div>
   </section>
+  </main>
 </BaseLayout>

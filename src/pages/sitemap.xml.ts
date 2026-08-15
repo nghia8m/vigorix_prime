@@ -1,5 +1,6 @@
 import type { APIRoute } from "astro";
 import { getCollection } from "astro:content";
+import { getShopProducts, productPath } from "../lib/products";
 
 const SITE = "https://vigorixprime.com";
 
@@ -13,13 +14,16 @@ const STATIC_PATHS = [
   "/contact",
   "/affiliate-disclosure",
   "/privacy-policy",
+  "/shop",
 ];
 
 export const GET: APIRoute = async () => {
   const articles = await getCollection("articles", ({ data }) => !data.draft);
+  const products = await getShopProducts();
   const urls = [
     ...STATIC_PATHS,
     ...articles.map((a) => `/${a.id}`),
+    ...products.map((p) => productPath(p.data)),
   ];
 
   const body = `<?xml version="1.0" encoding="UTF-8"?>

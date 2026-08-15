@@ -1,0 +1,58 @@
+---
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import OwnProductCard from "../../components/OwnProductCard.astro";
+import { getShopProducts } from "../../lib/products";
+
+const products = await getShopProducts();
+---
+<BaseLayout
+  title="Shop — Vigorix Prime Health Care Range"
+  description="Browse the Health Care products Vigorix Prime sells directly: herbal warming patches, knee support braces and everyday comfort essentials."
+  path="/shop"
+>
+  <main>
+  <section class="hero" style="padding:56px 0;">
+    <div class="container">
+      <h1>Shop — Health Care</h1>
+      <p>Everyday comfort and support essentials we sell directly, in a category of their own — separate from the brands we review.</p>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="container">
+      <!-- Conflict-of-interest notice. This site's editorial promise is
+           "independent, research-backed reviews"; anything we sell ourselves is
+           labelled as such everywhere it appears. -->
+      <p class="shop-notice">
+        <strong>These are products we sell ourselves.</strong> They are not part of
+        our independent review process, they are not scored or ranked by our
+        editorial team, and they never appear in our best-picks guides. Read our
+        <a href="/affiliate-disclosure">affiliate &amp; commerce disclosure</a> for
+        the full picture.
+      </p>
+
+      <div class="section-head"><h2>Our Health Care range</h2></div>
+
+      {products.length > 0 ? (
+        <div class="card-grid cols-3">
+          {products.map((product, i) => (
+            <OwnProductCard product={product} eager={i === 0} />
+          ))}
+        </div>
+      ) : (
+        <p class="shop-empty">
+          Our Health Care range is being prepared. In the meantime, browse our
+          independent reviews from the menu above.
+        </p>
+      )}
+
+      <p class="shop-legal">
+        Individual results vary. These are general wellness products, not medical
+        devices or medicines, and nothing on this page is medical advice. If you
+        have a specific health concern, speak to a qualified healthcare
+        professional before use.
+      </p>
+    </div>
+  </section>
+  </main>
+</BaseLayout>

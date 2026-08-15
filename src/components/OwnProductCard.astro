@@ -1,0 +1,46 @@
+---
+// Card for a product Vigorix Prime sells itself.
+// Reuses the editorial .card / .card-thumb / .card-body shell so the grid stays
+// visually consistent, and adds .owned-product + the mandatory "Our product"
+// label so it can never be mistaken for an independently reviewed pick.
+import { formatMoney, priceOf, defaultVariant, productPath, type Product } from "../lib/products";
+
+interface Props {
+  product: Product;
+  /** Above the fold? The /shop grid's first row wants eager loading. */
+  eager?: boolean;
+}
+
+const { product, eager = false } = Astro.props;
+const p = product.data;
+const href = productPath(p);
+const cover = p.images[0];
+const price = priceOf(p, defaultVariant(p));
+const isOut = p.stock === "out";
+---
+<div class="card owned-product">
+  <a class="card-thumb" href={href} tabindex="-1" aria-hidden="true">
+    <img
+      src={cover.url}
+      alt=""
+      width={cover.width}
+      height={cover.height}
+      loading={eager ? "eager" : "lazy"}
+      fetchpriority={eager ? "high" : "auto"}
+      decoding={eager ? "sync" : "async"}
+    />
+  </a>
+  <div class="card-body">
+    <span class="tag tag--own">Our product</span>
+    <h3><a href={href}>{p.name}</a></h3>
+    <p>{p.subtitle}</p>
+    <p class="own-price">
+      <span class="own-price-now">{formatMoney(price, p.currency)}</span>
+      {p.compareAt && p.compareAt > price && (
+        <s class="own-price-was">{formatMoney(p.compareAt, p.currency)}</s>
+      )}
+      {isOut && <span class="own-price-out">Out of stock</span>}
+    </p>
+    <a class="btn btn-shop" href={href}>View details<span class="sr-only"> for {p.name}</span> &rarr;</a>
+  </div>
+</div>

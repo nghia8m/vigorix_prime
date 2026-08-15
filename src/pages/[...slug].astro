@@ -1,6 +1,7 @@
 ---
 import { getCollection } from "astro:content";
 import BaseLayout from "../layouts/BaseLayout.astro";
+import { getShopProducts, productPath, formatMoney, priceOf, defaultVariant } from "../lib/products";
 
 export async function getStaticPaths() {
   const articles = await getCollection("articles", ({ data }) => !data.draft);
@@ -95,6 +96,14 @@ if (a.faqs.length) {
 
 const quickPickProduct = a.products.find((p) => p.name === a.quickPick.name);
 const quickPickHref = quickPickProduct?.affiliateUrl || "#";
+
+// Products from our own range that name this guide in `relatedArticles`.
+// They are rendered BELOW the conclusion, outside the ranking, outside the
+// comparison table and outside the ItemList/Review JSON-LD above — an
+// own-brand item is never part of an independent ranking on this site.
+const ownProducts = (await getShopProducts()).filter((p) =>
+  p.data.relatedArticles.includes(article.id)
+);
 ---
 <BaseLayout
   title={a.metaTitle}
@@ -198,6 +207,30 @@ const quickPickHref = quickPickProduct?.affiliateUrl || "#";
         <h2>Conclusion</h2>
         <p>{a.conclusion}</p>
       </div>
+
+      <!-- OUR OWN RANGE — disclosed, unranked, outside the guide above. -->
+      {ownProducts.length > 0 && (
+        <aside class="own-aside" aria-label="Products we sell ourselves">
+          <span class="tag tag--own">Our product</span>
+          <h2>From our own Health Care range</h2>
+          <p class="own-aside-note">
+            We sell the items below ourselves. They were <strong>not</strong> reviewed,
+            scored or ranked in this guide, and they are not part of our independent
+            testing process — we are linking them only because the subject overlaps.
+          </p>
+          <ul class="own-aside-list">
+            {ownProducts.map((product) => (
+              <li>
+                <a href={productPath(product.data)}>{product.data.name}</a>
+                <span class="own-aside-price">
+                  {formatMoney(priceOf(product.data, defaultVariant(product.data)), product.data.currency)}
+                </span>
+                <span class="own-aside-sub">{product.data.subtitle}</span>
+              </li>
+            ))}
+          </ul>
+        </aside>
+      )}
     </div>
   </article>
 </BaseLayout>

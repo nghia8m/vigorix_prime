@@ -1,0 +1,166 @@
+---
+import { getCollection, render } from "astro:content";
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import ProductGallery from "../../components/ProductGallery.astro";
+import BuyBox from "../../components/BuyBox.astro";
+import {
+  getShopProducts,
+  productPath,
+  defaultVariant,
+  priceOf,
+  skuOf,
+} from "../../lib/products";
+
+export async function getStaticPaths() {
+  const products = await getShopProducts();
+  return products.map((product) => ({
+    params: { slug: product.data.slug },
+    props: { product },
+  }));
+}
+
+const { product } = Astro.props;
+const p = product.data;
+const SITE_URL = "https://vigorixprime.com";
+const path = productPath(p);
+const canonical = new URL(path, SITE_URL).href;
+
+// Long description: authored in the MDX body, rendered to static HTML at build
+// time. It must stay in the source HTML — never moved to client-side rendering.
+const { Content } = await render(product);
+
+// Two-way internal linking with the editorial side.
+const allArticles = await getCollection("articles", ({ data }) => !data.draft);
+const related = p.relatedArticles
+  .map((id) => allArticles.find((a) => a.id === id))
+  .filter((a): a is (typeof allArticles)[number] => Boolean(a));
+
+const AVAILABILITY: Record<string, string> = {
+  in: "https://schema.org/InStock",
+  out: "https://schema.org/OutOfStock",
+  preorder: "https://schema.org/PreOrder",
+};
+
+const offerFor = (price: number, sku: string, stock: string, url: string) => ({
+  "@type": "Offer",
+  price: price.toFixed(2),
+  priceCurrency: p.currency,
+  availability: AVAILABILITY[stock],
+  url,
+  ...(sku ? { sku } : {}),
+});
+
+// NOTE: no aggregateRating and no review — we have no verified customer ratings
+// for our own range yet, and inventing them would be structured-data spam.
+const productSchema = {
+  "@context": "https://schema.org",
+  "@type": "Product",
+  name: p.name,
+  description: p.metaDescription,
+  image: p.images.map((img) => new URL(img.url, SITE_URL).href),
+  ...(p.sku ? { sku: p.sku } : {}),
+  brand: { "@type": "Brand", name: "Vigorix Prime" },
+  category: p.categoryLabel,
+  offers: p.variants.length
+    ? p.variants.map((v) =>
+        offerFor(
+          p.price + v.priceDelta,
+          v.sku,
+          v.stock,
+          p.variantType ? `${canonical}?${p.variantType}=${encodeURIComponent(v.value)}` : canonical
+        )
+      )
+    : offerFor(p.price, p.sku, p.stock, canonical),
+};
+
+const breadcrumb = {
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  itemListElement: [
+    { "@type": "ListItem", position: 1, name: "Home", item: `${SITE_URL}/` },
+    { "@type": "ListItem", position: 2, name: "Shop", item: `${SITE_URL}/shop` },
+    { "@type": "ListItem", position: 3, name: p.name },
+  ],
+};
+
+const variant = defaultVariant(p);
+const heroImage = p.images[variant?.imageIndex ?? 0] ?? p.images[0];
+---
+<BaseLayout
+  title={p.metaTitle}
+  description={p.metaDescription}
+  path={path}
+  ogType="product"
+  ogImage={heroImage.url}
+  jsonLd={[breadcrumb, productSchema]}
+  bodyClass="has-buybar"
+>
+  <main class="shop-page">
+    <div class="container">
+      <nav class="breadcrumb" aria-label="Breadcrumb">
+        <a href="/">Home</a> &rsaquo; <a href="/shop">Shop</a> &rsaquo; <span>{p.name}</span>
+      </nav>
+
+      <p class="shop-notice shop-notice--compact">
+        <strong>This is a product we sell ourselves.</strong> It is not part of our
+        independent review process and never appears in our rankings or best-picks guides.
+      </p>
+
+      <!-- Two columns in ONE grid container so the sticky buy panel stops at the
+           end of the left-hand content instead of running into the footer.
+           DOM order (gallery → buy panel → details) is also the reading order on
+           mobile and keeps headings sequential: h1 in the panel, h2s below it. -->
+      <div class="pd-grid">
+        <div class="pd-gallery">
+          <ProductGallery images={p.images} video={p.video} name={p.name} />
+        </div>
+
+        <aside class="pd-buy" aria-label="Purchase options">
+          <BuyBox data={p} />
+        </aside>
+
+        <div class="pd-details">
+          {p.specs.length > 0 && (
+            <section class="pd-section" id="specs">
+              <h2>Specifications</h2>
+              <div class="table-wrap">
+                <table class="compare pd-specs">
+                  <tbody>
+                    {p.specs.map((s) => (
+                      <tr>
+                        <th scope="row">{s.label}</th>
+                        <td>{s.value || "TODO"}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </section>
+          )}
+
+          <section class="pd-section pd-prose" id="description">
+            <Content />
+          </section>
+
+          {related.length > 0 && (
+            <section class="pd-section pd-related" id="related-reading">
+              <h2>Related reading from our editorial team</h2>
+              <p class="pd-related-note">
+                These independent guides review products from other brands. Our own
+                range is not ranked or scored in them.
+              </p>
+              <ul>
+                {related.map((a) => (
+                  <li>
+                    <a href={`/${a.id}`}>{a.data.cardTitle || a.data.title}</a>
+                    <span class="pd-related-cat"> — {a.data.category}</span>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
+        </div>
+      </div>
+    </div>
+  </main>
+</BaseLayout>

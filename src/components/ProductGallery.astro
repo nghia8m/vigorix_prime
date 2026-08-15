@@ -1,0 +1,159 @@
+---
+// Product gallery: swipeable main image + thumbnail rail + counter + lightbox.
+//
+// Every slide is in the static HTML (no client-side rendering of content), the
+// track is a native scroll-snap carousel so mobile swipe works with no library,
+// and the thumbnails are real <button>s so the whole thing is keyboard usable.
+import type { ProductData } from "../lib/products";
+
+interface Props {
+  images: ProductData["images"];
+  video: ProductData["video"];
+  name: string;
+}
+
+const { images, video, name } = Astro.props;
+const total = images.length;
+---
+<div class="gallery" data-gallery>
+  <div class="gallery-main">
+    <ul class="gallery-track" data-gallery-track tabindex="0" aria-label={`${name} — image gallery`}>
+      {images.map((img, i) => (
+        <li class="gallery-slide" data-index={i}>
+          <button
+            type="button"
+            class="gallery-zoom"
+            data-gallery-zoom={i}
+            aria-label={`Enlarge image ${i + 1} of ${total}: ${img.alt}`}
+          >
+            <picture>
+              {img.avif && <source srcset={img.avif} type="image/avif" />}
+              {img.webp && <source srcset={img.webp} type="image/webp" />}
+              <img
+                src={img.url}
+                alt={img.alt}
+                width={img.width}
+                height={img.height}
+                loading={i === 0 ? "eager" : "lazy"}
+                fetchpriority={i === 0 ? "high" : "auto"}
+                decoding={i === 0 ? "sync" : "async"}
+              />
+            </picture>
+          </button>
+        </li>
+      ))}
+    </ul>
+    <p class="gallery-counter" data-gallery-counter aria-live="polite">
+      <span data-gallery-current>1</span> / {total}
+    </p>
+  </div>
+
+  {total > 1 && (
+    <ul class="gallery-thumbs" data-gallery-thumbs>
+      {images.map((img, i) => (
+        <li>
+          <button
+            type="button"
+            class:list={["gallery-thumb", { active: i === 0 }]}
+            data-gallery-thumb={i}
+            aria-label={`View image ${i + 1} of ${total}`}
+            aria-current={i === 0 ? "true" : "false"}
+          >
+            <img src={img.url} alt="" width={img.width} height={img.height} loading="lazy" />
+          </button>
+        </li>
+      ))}
+    </ul>
+  )}
+
+  {video && (
+    <div class="gallery-video">
+      <video controls preload="none" poster={video.poster || undefined} width="800" height="450">
+        <source src={video.url} />
+        Your browser cannot play this video.
+      </video>
+    </div>
+  )}
+</div>
+
+<dialog class="lightbox" data-lightbox aria-label={`${name} — enlarged image`}>
+  <button type="button" class="lightbox-close" data-lightbox-close aria-label="Close enlarged image">&times;</button>
+  <img data-lightbox-img src={images[0].url} alt={images[0].alt} width={images[0].width} height={images[0].height} />
+</dialog>
+
+<script is:inline>
+  (function () {
+    var root = document.querySelector("[data-gallery]");
+    if (!root) return;
+
+    var track = root.querySelector("[data-gallery-track]");
+    var thumbs = Array.prototype.slice.call(root.querySelectorAll("[data-gallery-thumb]"));
+    var current = root.querySelector("[data-gallery-current]");
+    var slides = Array.prototype.slice.call(root.querySelectorAll(".gallery-slide"));
+    var dialog = document.querySelector("[data-lightbox]");
+    var dialogImg = dialog && dialog.querySelector("[data-lightbox-img]");
+    var closeBtn = dialog && dialog.querySelector("[data-lightbox-close]");
+    var index = 0;
+
+    function mark(i) {
+      if (i === index) return;
+      index = i;
+      if (current) current.textContent = String(i + 1);
+      thumbs.forEach(function (t, ti) {
+        t.classList.toggle("active", ti === i);
+        t.setAttribute("aria-current", ti === i ? "true" : "false");
+      });
+    }
+
+    function show(i, behavior) {
+      if (i < 0 || i >= slides.length) return;
+      track.scrollTo({ left: slides[i].offsetLeft - slides[0].offsetLeft, behavior: behavior || "smooth" });
+      mark(i);
+    }
+
+    // Driven by the variant picker so choosing a size can swap the main image.
+    window.vpGallery = { show: show };
+
+    thumbs.forEach(function (btn, i) {
+      btn.addEventListener("click", function () {
+        show(i);
+      });
+    });
+
+    // Keep the counter honest when the user swipes/scrolls the track directly.
+    var raf = null;
+    track.addEventListener(
+      "scroll",
+      function () {
+        if (raf) return;
+        raf = requestAnimationFrame(function () {
+          raf = null;
+          var width = slides[0].getBoundingClientRect().width || 1;
+          mark(Math.max(0, Math.min(slides.length - 1, Math.round(track.scrollLeft / width))));
+        });
+      },
+      { passive: true }
+    );
+
+    if (!dialog || !dialogImg) return;
+
+    root.querySelectorAll("[data-gallery-zoom]").forEach(function (btn) {
+      btn.addEventListener("click", function () {
+        var img = btn.querySelector("img");
+        dialogImg.src = img.currentSrc || img.src;
+        dialogImg.alt = img.alt;
+        dialogImg.width = img.width;
+        dialogImg.height = img.height;
+        if (typeof dialog.showModal === "function") dialog.showModal();
+      });
+    });
+
+    closeBtn.addEventListener("click", function () {
+      dialog.close();
+    });
+    // Click the backdrop (i.e. the dialog element itself) to dismiss.
+    dialog.addEventListener("click", function (e) {
+      if (e.target === dialog) dialog.close();
+    });
+  })();
+</script>

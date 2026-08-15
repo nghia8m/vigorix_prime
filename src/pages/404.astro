@@ -1,0 +1,24 @@
+---
+// Static 404 page. Cloudflare Pages serves /404.html with a real HTTP 404 for
+// any unmatched path, including /shop/<slug-that-does-not-exist>.
+import BaseLayout from "../layouts/BaseLayout.astro";
+---
+<BaseLayout
+  title="Page not found — Vigorix Prime"
+  description="The page you were looking for does not exist or has moved."
+  path="/404"
+>
+  <main class="page">
+    <div class="container page-wrap">
+      <h1>Page not found</h1>
+      <p class="lead">The page you were looking for does not exist, or it has moved.</p>
+      <p>Try one of these instead:</p>
+      <ul>
+        <li><a href="/">Home</a></li>
+        <li><a href="/#best-picks">Editor's Best Picks</a></li>
+        <li><a href="/shop">Shop — our Health Care range</a></li>
+        <li><a href="/contact">Contact us</a></li>
+      </ul>
+    </div>
+  </main>
+</BaseLayout>

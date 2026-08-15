@@ -26,6 +26,10 @@
       {
         "label": "About",
         "href": "/about"
+      },
+      {
+        "label": "Shop",
+        "href": "/shop"
       }
     ]
   },
@@ -50,6 +54,10 @@
           {
             "label": "Grooming",
             "href": "/grooming"
+          },
+          {
+            "label": "Shop — Our Own Products",
+            "href": "/shop"
           }
         ]
       },

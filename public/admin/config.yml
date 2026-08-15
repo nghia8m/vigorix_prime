@@ -99,6 +99,136 @@ collections:
       - { name: "conclusion", label: "Conclusion", widget: "text" }
 
   # -------------------------------------------------------------------------
+  # SHOP PRODUCTS — the Health Care range we sell ourselves
+  # -------------------------------------------------------------------------
+  # Same storage mechanism as Articles (files in the repo, committed by the CMS)
+  # — there is no second, parallel product database anywhere.
+  # Frontmatter = the structured fields below. Body = the long description.
+  #
+  # IMPORTANT: a product with "Draft" ON deliberately BLOCKS the production
+  # build. Fill in the real copy, photos, prices and specs, then switch Draft off.
+  - name: "products"
+    label: "Shop Products"
+    label_singular: "Product"
+    folder: "src/content/products"
+    create: true
+    delete: true
+    extension: "mdx"
+    format: "frontmatter"
+    slug: "{{fields.slug}}"
+    summary: "{{name}} — {{price}} {{currency}}"
+    sortable_fields: ["order", "name", "price"]
+    fields:
+      - { name: "slug", label: "URL slug (page will be /shop/<slug>)", widget: "string", hint: "Changing this changes the page URL and breaks existing links. Set it once, then leave it alone.", pattern: ['^[a-z0-9]+(-[a-z0-9]+)*$', "Lowercase letters, numbers and hyphens only"] }
+      - { name: "name", label: "Product Name (H1)", widget: "string" }
+      - { name: "subtitle", label: "One-line description (used on cards)", widget: "string", required: false, default: "" }
+      - { name: "metaTitle", label: "Meta Title (SEO, <=70 chars)", widget: "string", pattern: ['^.{1,70}$', "Keep under 70 characters"] }
+      - { name: "metaDescription", label: "Meta Description (SEO, <=165 chars)", widget: "text", pattern: ['^.{1,165}$', "Keep under 165 characters"] }
+      - { name: "category", label: "Category (machine value)", widget: "hidden", default: "health-care" }
+      - { name: "categoryLabel", label: "Category Label", widget: "string", default: "Health Care" }
+      - { name: "price", label: "Price (number only, e.g. 29)", widget: "number", value_type: "float" }
+      - { name: "compareAt", label: "Was-price / struck-through (leave empty for none)", widget: "number", value_type: "float", required: false }
+      - { name: "currency", label: "Currency code", widget: "string", default: "USD" }
+      - { name: "sku", label: "Base SKU", widget: "string", required: false, default: "" }
+      - name: "badges"
+        label: "Badges (short labels shown next to the name)"
+        widget: "list"
+        required: false
+        allow_reorder: true
+        field: { name: "badge", label: "Badge", widget: "string" }
+      - name: "variantType"
+        label: "Variant type (also the URL key, e.g. size -> ?size=m). Leave as none if the product has no variants."
+        widget: "select"
+        required: false
+        options: ["size", "color", "pack"]
+      - { name: "variantLegend", label: "Variant question shown to the buyer (e.g. Choose a size)", widget: "string", required: false, default: "" }
+      - name: "variants"
+        label: "Variants (one page with a picker — never a separate page per size)"
+        label_singular: "Variant"
+        widget: "list"
+        required: false
+        allow_reorder: true
+        hint: "Drag to reorder — the first in-stock variant is the one the page opens on. Every id and SKU must be unique; saving is blocked if two match."
+        summary: "{{fields.label}} ({{fields.sku}})"
+        fields:
+          - { name: "id", label: "Internal id (unique, e.g. size-m)", widget: "string" }
+          - { name: "label", label: "Button label (e.g. M)", widget: "string" }
+          - { name: "value", label: "URL value (e.g. m)", widget: "string" }
+          - { name: "priceDelta", label: "Price difference vs the base price (0, or e.g. 4)", widget: "number", value_type: "float", default: 0 }
+          - { name: "sku", label: "SKU", widget: "string", required: false, default: "" }
+          - { name: "stock", label: "Stock", widget: "select", options: ["in", "out", "preorder"], default: "in" }
+          - { name: "imageIndex", label: "Main image to show for this variant (0 = first image)", widget: "number", value_type: "int", default: 0 }
+          - { name: "purchaseUrl", label: "Buy link for THIS variant (optional; falls back to the product buy link)", widget: "string", required: false, default: "" }
+      # A product page cannot ship without at least one image, so the rule is
+      # enforced here (blocks Save) as well as in the Zod schema (blocks build).
+      - name: "images"
+        label: "Images (first one is the main / social image)"
+        widget: "list"
+        required: true
+        min: 1
+        allow_reorder: true
+        hint: "Drag to reorder — the first image is the main one and the social share image. Keep files under 400 KB."
+        summary: "{{fields.alt}}"
+        fields:
+          # Uploads for this field land in public/images/shop/ rather than the
+          # site-wide public/images/ folder.
+          - name: "url"
+            label: "Image"
+            widget: "image"
+            media_folder: "/public/images/shop"
+            public_folder: "/images/shop"
+          - { name: "alt", label: "Alt text (describe what is actually shown)", widget: "string", required: true, hint: "Required. Describe what is in the photo, not the product name." }
+          - { name: "width", label: "Width in px", widget: "number", value_type: "int", default: 800 }
+          - { name: "height", label: "Height in px", widget: "number", value_type: "int", default: 800 }
+          - { name: "avif", label: "AVIF version (optional)", widget: "string", required: false, default: "" }
+          - { name: "webp", label: "WebP version (optional)", widget: "string", required: false, default: "" }
+      - name: "video"
+        label: "Video (optional)"
+        widget: "object"
+        required: false
+        fields:
+          - { name: "url", label: "Video file URL", widget: "string" }
+          - { name: "poster", label: "Poster image", widget: "image", required: false, default: "" }
+      - name: "specs"
+        label: "Specifications table"
+        widget: "list"
+        required: false
+        allow_reorder: true
+        summary: "{{fields.label}}: {{fields.value}}"
+        fields:
+          - { name: "label", label: "Label", widget: "string" }
+          - { name: "value", label: "Value (write TODO rather than guessing a figure)", widget: "string" }
+      - name: "trust"
+        label: "Trust boxes (up to 4 shown)"
+        widget: "list"
+        required: false
+        allow_reorder: true
+        summary: "{{fields.title}}"
+        fields:
+          - { name: "icon", label: "Icon", widget: "select", options: ["shield", "truck", "refresh", "support", "leaf", "lock"], default: "shield" }
+          - { name: "title", label: "Title", widget: "string" }
+          - { name: "sub", label: "Sub-text", widget: "string", required: false, default: "" }
+      - name: "shipTo"
+        label: "Ships to (display only)"
+        widget: "list"
+        required: false
+        allow_reorder: true
+        field: { name: "place", label: "Country / region", widget: "string" }
+      - { name: "stock", label: "Stock (used when there are no variants)", widget: "select", options: ["in", "out", "preorder"], default: "in" }
+      - { name: "purchaseUrl", label: "Buy link (external checkout URL; empty = button disabled)", widget: "string", required: false, default: "", hint: "Phase 1: paste the external checkout URL. Leave empty and the buy button ships disabled — that is allowed, you will just get a reminder when saving." }
+      - { name: "quantityParam", label: "Quantity query parameter the checkout accepts (e.g. qty). LEAVE EMPTY and the quantity box is hidden instead of doing nothing.", widget: "string", required: false, default: "", hint: "Only fill this in if the checkout page actually reads the parameter. Empty = the quantity box is hidden rather than shown doing nothing." }
+      - { name: "variantParam", label: "Variant query parameter the checkout accepts (optional)", widget: "string", required: false, default: "" }
+      - name: "relatedArticles"
+        label: "Related review guides (article filename without .md) — links both ways, outside the rankings"
+        widget: "list"
+        required: false
+        allow_reorder: true
+        field: { name: "id", label: "Article id", widget: "string" }
+      - { name: "order", label: "Order (lower = shown earlier)", widget: "number", value_type: "int", default: 99 }
+      - { name: "draft", label: "Draft — blocks the production build", widget: "boolean", default: true, hint: "ON = this product is a placeholder. While ANY product has Draft ON, `npm run build` FAILS on purpose and the site cannot deploy. Switch it OFF only when every field holds real data — no TODO left, real photos, real price." }
+      - { name: "body", label: "Long description (headings, paragraphs, images, FAQ)", widget: "markdown", hint: "This becomes the page body. Avoid treatment claims (cure / treat / heal / relief) and never publish a made-up figure." }
+
+  # -------------------------------------------------------------------------
   # SITE SETTINGS — header, footer, and site-wide verification/analytics code
   # -------------------------------------------------------------------------
   - name: "settings"
