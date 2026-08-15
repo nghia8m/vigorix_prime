@@ -326,3 +326,24 @@
 @media (max-width: 560px) {
   .co-row { grid-template-columns: 1fr; }
 }
+
+/* ---------- payment status + confirmation ---------- */
+.co-pay-status { font-size: 0.88rem; font-weight: 600; margin: 10px 0 4px; }
+.co-pay-status.is-error { color: #b23838; }
+.co-pay-status.is-info { color: var(--navy-dark); }
+.co-pay-status.is-pending { color: var(--gray-700); }
+.co-payment-slot { flex-direction: column; }
+
+.co-paid {
+  max-width: 640px;
+  margin: 40px auto;
+  background: var(--white);
+  border: 1px solid var(--gray-200);
+  border-left: 5px solid #2f7d36;
+  border-radius: var(--radius);
+  padding: 28px;
+  text-align: center;
+}
+.co-paid h1 { color: var(--navy); font-size: 1.6rem; margin-bottom: 10px; }
+.co-paid-line { font-size: 1rem; color: var(--gray-900); margin-bottom: 10px; }
+.co-paid p { color: var(--gray-700); margin-bottom: 14px; }

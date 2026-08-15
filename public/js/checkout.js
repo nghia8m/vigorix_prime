@@ -575,6 +575,51 @@
     }
   }
 
+  /**
+   * Surface for the payment buttons (public/js/paypal-buttons.js).
+   * Everything money-related is deliberately absent: the buttons ask the cart
+   * for prices and the server recomputes them anyway.
+   */
+  window.vpCheckoutForm = {
+    /** Silent check — used by onClick before opening PayPal. */
+    isValid: function () {
+      return fields().every(function (el) { return messageFor(el) === ""; });
+    },
+    /** Shows every error and moves focus to the first, after a blocked click. */
+    revealErrors: function () {
+      var bad = validateAll();
+      if (bad.length) bad[0].focus();
+      return bad.length;
+    },
+    shippingRateId: function () { return selectedRateId; },
+    customer: function () {
+      var f = function (n) { return (form.elements[n] ? form.elements[n].value : "").trim(); };
+      return { email: f("email"), firstName: f("firstName"), lastName: f("lastName"), phone: f("phone") };
+    },
+    address: function () {
+      var f = function (n) { return (form.elements[n] ? form.elements[n].value : "").trim(); };
+      return {
+        line1: f("addressLine1"), line2: f("addressLine2"), city: f("city"),
+        region: f("region"), postalCode: f("postalCode"), country: f("country"),
+      };
+    },
+    /** Called once the server has confirmed a capture. */
+    onPaid: function (result) {
+      window.vpCart.clear();
+      var panel = document.querySelector("[data-co-paid]");
+      if (panel) {
+        panel.hidden = false;
+        var id = panel.querySelector("[data-paid-order-id]");
+        var st = panel.querySelector("[data-paid-status]");
+        if (id) id.textContent = result.orderId || "";
+        if (st) st.textContent = result.status || "";
+        panel.scrollIntoView({ behavior: "smooth", block: "start" });
+      }
+      var grid = document.querySelector("[data-co-grid]");
+      if (grid) grid.hidden = true;
+    },
+  };
+
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", wire);
   else wire();
 })();

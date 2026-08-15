@@ -154,9 +154,13 @@ import { COUNTRIES, ADDRESS_RULES } from "../lib/countries";
             <!-- Phase 3 renders the real payment buttons here. The id is stable
                  and the box is already tall enough for two stacked buttons, so
                  nothing below it shifts when they appear (CLS). -->
+            <!-- public/js/paypal-buttons.js replaces the contents of this
+                 container once the SDK is up. Sized in advance so the buttons
+                 appearing cannot shift the page. -->
             <div class="co-payment-slot" id="payment-buttons" data-payment-slot aria-live="polite">
-              <p class="co-payment-pending">Payment is not connected yet — coming in the next step.</p>
+              <p class="co-payment-pending">Loading secure payment options…</p>
             </div>
+            <p class="co-pay-status" data-pay-status role="status" aria-live="polite" hidden></p>
 
             <button type="submit" class="buy-btn co-submit" data-co-submit>Review order</button>
           </section>
@@ -207,6 +211,14 @@ import { COUNTRIES, ADDRESS_RULES } from "../lib/countries";
         </div>
       </aside>
     </div>
+
+    <!-- Shown only after the SERVER confirms a capture. -->
+    <section class="co-paid" data-co-paid hidden aria-labelledby="paid-h">
+      <h1 id="paid-h">Thank you — your order is confirmed</h1>
+      <p class="co-paid-line">Order <strong data-paid-order-id></strong> · status <strong data-paid-status></strong></p>
+      <p>We have emailed nothing yet — order emails arrive in a later phase. Keep your PayPal receipt in the meantime.</p>
+      <a class="btn btn-shop" href="/shop">Continue shopping</a>
+    </section>
 
     <!-- Dev output for the draft order object (phase 2 deliverable). -->
     <section class="co-devout" data-co-devout hidden aria-labelledby="devout-h">
