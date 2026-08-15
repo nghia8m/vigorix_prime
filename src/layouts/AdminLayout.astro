@@ -34,7 +34,28 @@ const { title } = Astro.props;
   <div class="ad-gate" data-admin-gate hidden>
     <h1>Sign in to view orders</h1>
     <p class="ad-gate-note" data-gate-note>Checking your session…</p>
-    <button type="button" class="btn btn-shop" data-admin-login hidden>Sign in with GitHub</button>
+
+    <form class="ad-login" data-login-form hidden>
+      <label for="gh-token">GitHub personal access token</label>
+      <input
+        id="gh-token"
+        name="token"
+        type="password"
+        autocomplete="off"
+        spellcheck="false"
+        placeholder="ghp_… or github_pat_…"
+        data-login-token
+      />
+      <p class="ad-login-hint">
+        A token with no scopes at all is enough — it is used only to read your
+        username. Create one at
+        <a href="https://github.com/settings/tokens" target="_blank" rel="noopener">github.com/settings/tokens</a>.
+        It is sent once, checked, and never stored.
+      </p>
+      <p class="ad-login-error" data-login-error role="alert" hidden></p>
+      <button type="submit" class="btn btn-shop" data-login-submit>Sign in</button>
+    </form>
+
     <p class="ad-gate-help">
       These screens show customer names, addresses and payment records. Access is
       limited to the GitHub accounts listed in <code>ADMIN_GITHUB_LOGINS</code>.

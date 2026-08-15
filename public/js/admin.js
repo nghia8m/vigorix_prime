@@ -60,7 +60,15 @@
     $("[data-admin-gate]").hidden = false;
     $("[data-admin-main]").hidden = true;
     $("[data-gate-note]").textContent = message;
-    $("[data-admin-login]").hidden = !canLogin;
+    var form = $("[data-login-form]");
+    if (form) form.hidden = !canLogin;
+  }
+
+  function loginError(message) {
+    var p = $("[data-login-error]");
+    if (!p) return;
+    p.hidden = !message;
+    p.textContent = message || "";
   }
 
   function showApp(login) {
@@ -73,57 +81,55 @@
   }
 
   /**
-   * Reuses the CMS's own OAuth worker: it posts the GitHub token back to the
-   * opener, and we exchange it for a session cookie. The token itself is never
-   * stored here.
+   * Sign in with a GitHub personal access token.
+   *
+   * A pasted token rather than an OAuth popup, on purpose: the CMS worker
+   * issues tokens for a deployed site_id, so the popup flow does not work on
+   * localhost, and an admin you cannot reach locally is an admin nobody can
+   * test. The token needs no scopes — it is used once to read the username,
+   * checked against the allowlist, and never stored.
    */
-  function login() {
-    var note = $("[data-gate-note]");
-    note.textContent = "Opening GitHub…";
+  function submitLogin(e) {
+    if (e) e.preventDefault();
+    var input = $("[data-login-token]");
+    var button = $("[data-login-submit]");
+    var token = (input.value || "").trim();
 
-    fetch("/admin/config.yml", { credentials: "same-origin" })
-      .then(function (r) { return r.text(); })
-      .then(function (yaml) {
-        var base = (yaml.match(/base_url:\s*(\S+)/) || [])[1];
-        if (!base) throw new Error("base_url is not set in /admin/config.yml");
+    loginError("");
+    if (!token) { loginError("Paste a GitHub token first."); input.focus(); return; }
 
-        var popup = window.open(
-          base.replace(/\/$/, "") + "/auth?provider=github&site_id=" + encodeURIComponent(location.hostname),
-          "vp-admin-login",
-          "width=600,height=700"
+    button.disabled = true;
+    var previous = button.textContent;
+    button.textContent = "Checking…";
+
+    api("/api/admin/session", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ token: token })
+    }).then(function (res) {
+      button.disabled = false;
+      button.textContent = previous;
+      input.value = "";
+
+      if (res.status === 200 && res.body.ok) { loginError(""); boot(); return; }
+
+      if (res.status === 401) {
+        loginError("GitHub did not accept that token. Check it has not expired, or create a new one.");
+      } else if (res.status === 403) {
+        loginError(
+          "GitHub account \"" + (res.body.login || "?") + "\" is signed in, but it is not on the " +
+          "allowed list. Add it to ADMIN_GITHUB_LOGINS on the server."
         );
-        if (!popup) throw new Error("popup blocked");
-
-        function onMessage(e) {
-          if (typeof e.data !== "string") return;
-          var m = e.data.match(/^authorization:github:success:(.+)$/);
-          if (!m) return;
-          window.removeEventListener("message", onMessage);
-          var token;
-          try { token = JSON.parse(m[1]).token; } catch (err) { token = null; }
-          if (!token) { note.textContent = "GitHub did not return a token."; return; }
-
-          note.textContent = "Checking your account…";
-          api("/api/admin/session", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ token: token }),
-          }).then(function (res) {
-            if (res.status === 200 && res.body.ok) { boot(); return; }
-            if (res.status === 403) {
-              note.textContent = "GitHub account " + (res.body.login || "") +
-                " is not on the allowed list for this admin.";
-              return;
-            }
-            note.textContent = res.body.message || "Sign-in failed (" + res.status + ").";
-          });
-        }
-        window.addEventListener("message", onMessage);
-        popup.postMessage("authorizing:github", "*");
-      })
-      .catch(function (err) {
-        note.textContent = "Could not start sign-in: " + err.message;
-      });
+      } else if (res.status === 503) {
+        loginError(res.body.message || "Admin access is not configured on the server.");
+      } else {
+        loginError("Sign-in failed (HTTP " + res.status + ").");
+      }
+    }).catch(function () {
+      button.disabled = false;
+      button.textContent = previous;
+      loginError("Could not reach the server. Is it still running?");
+    });
   }
 
   function boot() {
@@ -488,8 +494,8 @@
   // ---------------------------------------------------------------- init --
 
   function init() {
-    var loginBtn = $("[data-admin-login]");
-    if (loginBtn) loginBtn.addEventListener("click", login);
+    var form = $("[data-login-form]");
+    if (form) form.addEventListener("submit", submitLogin);
     var out = $("[data-admin-logout]");
     if (out) {
       out.addEventListener("click", function () {

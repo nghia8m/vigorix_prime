@@ -24,6 +24,15 @@ To look at draft products locally, use `npm run build:preview` — it sets
 deployed. The `dist/` produced by that command contains placeholder copy, "SAMPLE"
 images and `TODO` specs; publishing it would put fake data in front of readers.
 
+## Two different admins
+
+They are separate tools and do not share a login:
+
+| | What it edits | Where | Storage |
+| --- | --- | --- | --- |
+| **Sveltia CMS** | products, articles, site settings | `/admin/index.html` | files in git |
+| **Orders** | order status, tracking | `/admin/orders` | D1 database |
+
 ## Editing content in the admin, locally
 
 The CMS is **Sveltia** (Decap-compatible), configured in
@@ -45,6 +54,82 @@ Brave additionally needs the API enabled at `brave://flags/#file-system-access-a
 
 > On the deployed site the same admin runs at `/admin` against the GitHub
 > backend, where saving creates a commit and triggers a rebuild.
+
+## The Orders screen, locally
+
+`/admin/orders` reads paid orders out of D1 — real customer names, emails,
+addresses and amounts. It is protected separately from the CMS, and **refuses to
+serve anything until that protection is configured**.
+
+### 1. Environment variables
+
+Both go in `.env` locally (already gitignored) and in Cloudflare's environment
+variables in production. Neither belongs in `site.json` or the CMS: anything
+saved there is committed to the repo forever.
+
+```
+ADMIN_SESSION_SECRET=<64 hex characters>
+ADMIN_GITHUB_LOGINS=nghia8m
+```
+
+Generate a secret with:
+
+```bash
+node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+```
+
+`ADMIN_GITHUB_LOGINS` is a comma-separated allowlist of GitHub usernames. Being
+able to sign in to GitHub is not by itself permission to read customer
+addresses — the account must be on this list.
+
+With either missing, every admin endpoint answers `503 admin_not_configured`.
+There is no development flag that waves requests through.
+
+### 2. The database
+
+```bash
+npx wrangler d1 migrations apply vigorix_orders --local
+```
+
+Local only: the data lives in `.wrangler/state`, and `astro dev` reaches it
+through the adapter's platform proxy. Nothing touches a Cloudflare account.
+
+### 3. Signing in
+
+1. `npm run dev`
+2. Open **http://localhost:4321/admin/orders**
+3. Paste a **GitHub personal access token** and press *Sign in*.
+   A token with **no scopes at all** is enough — it is used once to read your
+   username, then discarded. Create one at
+   [github.com/settings/tokens](https://github.com/settings/tokens).
+4. Sign out with the button in the header.
+
+The session is a signed cookie valid for 8 hours. Changing
+`ADMIN_SESSION_SECRET` immediately invalidates every existing session — that is
+the way to lock everyone out if a laptop goes missing.
+
+### What the screen can and cannot change
+
+Editable: the **Status** column (pending / paid / processing / shipped /
+delivered / cancelled / refunded) and the tracking number. Every change is
+appended to the order's history with the old and new value and who made it.
+
+Not editable: the **Server** column. That is written only by the payment capture
+and by signature-verified PayPal webhooks. A hand-typed "paid" must never be
+indistinguishable from a payment that actually happened. Orders cannot be
+deleted either — cancelling is a status.
+
+An order with no lines and no customer details is expected, not a bug: it means
+a payment succeeded while the database write failed, and the webhook rebuilt
+what it could. Those are flagged **needs manual reconciliation** with the PayPal
+capture ID to look up.
+
+### In production
+
+Put both variables in the Cloudflare environment, and consider putting
+Cloudflare Access in front of `/admin*` and `/api/admin/*` as a second layer.
+It is a layer, not a replacement: the cookie check above is what protects the
+Worker itself.
 
 ### What the admin blocks before you can save
 
