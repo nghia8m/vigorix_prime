@@ -18,8 +18,9 @@
   var rules = { regionLabels: {}, regionRequired: [], noPostalCode: [], defaultRegionLabel: "Region" };
   var selectedRateId = null;
   var submitting = false; // re-entrancy guard for a single click burst
+  var lastSubmitAt = 0; // timestamp of the last accepted submit
+  var DOUBLE_CLICK_MS = 1200; // repeats inside this window are the same action
   var currentOrder = null; // the draft already built, if any
-  var currentFingerprint = null; // what that draft was built from
 
   function $(s, r) { return (r || document).querySelector(s); }
   function $$(s, r) { return Array.prototype.slice.call((r || document).querySelectorAll(s)); }
@@ -338,12 +339,20 @@
 
   // ---------------------------------------------------------- order object --
 
+  /**
+   * A fresh id every call. Phase 3 puts this in PayPal's invoice_id, which
+   * PayPal rejects if it has been seen before, so it must be minted per
+   * payment initiation — never derived from the contents of the order.
+   */
   function orderId() {
     var d = new Date();
     var stamp = d.getFullYear() + String(d.getMonth() + 1).padStart(2, "0") + String(d.getDate()).padStart(2, "0");
     var rand = Math.random().toString(36).slice(2, 8).toUpperCase();
-    return "VP-" + stamp + "-" + rand;
+    var tick = Date.now().toString(36).slice(-4).toUpperCase();
+    return "VP-" + stamp + "-" + rand + tick;
   }
+  // Exposed so phase 3 mints a new id at payment initiation.
+  window.vpNewOrderId = orderId;
 
   function buildOrder() {
     var cart = window.vpCart;
@@ -393,21 +402,6 @@
     };
   }
 
-  /**
-   * What the current draft would be built from. Pressing the button twice
-   * without changing anything must not mint a second order id, so the previous
-   * draft is reused whenever this string is unchanged.
-   */
-  function fingerprint() {
-    var vals = {};
-    fields().forEach(function (el) { vals[el.name] = el.value; });
-    return JSON.stringify({
-      items: window.vpCart.state().items,
-      rate: selectedRateId,
-      form: vals,
-    });
-  }
-
   function submit(e) {
     e.preventDefault();
     if (submitting) return; // second click inside the same burst
@@ -426,20 +420,23 @@
       return;
     }
 
+    // Double-click protection is a TIME window, not a content comparison.
+    // Reusing an id whenever the cart and form matched meant a customer who
+    // deliberately reordered exactly the same items got the same order id
+    // again — and PayPal rejects a repeated invoice_id, so their second
+    // purchase would fail. Identical repeat orders must get their own id.
+    var now = Date.now();
+    if (currentOrder && now - lastSubmitAt < DOUBLE_CLICK_MS) {
+      showOrder(currentOrder);
+      return;
+    }
+    lastSubmitAt = now;
+
     submitting = true;
     submitBtn.disabled = true;
 
-    // Same cart, same form, same shipping choice => same draft. Only a real
-    // change mints a new order id.
-    var print = fingerprint();
-    var order;
-    if (currentOrder && print === currentFingerprint) {
-      order = currentOrder;
-    } else {
-      order = buildOrder();
-      currentOrder = order;
-      currentFingerprint = print;
-    }
+    var order = buildOrder();
+    currentOrder = order;
 
     try {
       window.localStorage.setItem(ORDER_KEY, JSON.stringify(order));
@@ -447,14 +444,17 @@
       /* storage blocked — the object is still shown below */
     }
     window.__vpLastOrder = order;
-
-    devoutJson.textContent = JSON.stringify(order, null, 2);
-    devout.hidden = false;
-    devout.scrollIntoView({ behavior: "smooth", block: "start" });
+    showOrder(order);
 
     // The cart is intentionally left untouched: nothing has been paid for.
     submitBtn.disabled = false;
     submitting = false;
+  }
+
+  function showOrder(order) {
+    devoutJson.textContent = JSON.stringify(order, null, 2);
+    devout.hidden = false;
+    devout.scrollIntoView({ behavior: "smooth", block: "start" });
   }
 
   // ------------------------------------------------------------------ wire --
