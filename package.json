@@ -8,7 +8,8 @@
     "build": "astro build",
     "build:preview": "node scripts/build-preview.mjs",
     "preview": "astro preview",
-    "astro": "astro"
+    "astro": "astro",
+    "test": "node --test \"tests/**/*.test.ts\""
   },
   "dependencies": {
     "@astrojs/cloudflare": "^12.6.13",
