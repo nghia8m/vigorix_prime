@@ -1,0 +1,27 @@
+name = "vigorix-prime"
+compatibility_date = "2025-04-01"
+compatibility_flags = ["nodejs_compat"]
+pages_build_output_dir = "dist"
+
+# ---------------------------------------------------------------------------
+# Orders database.
+#
+# LOCAL ONLY for now: `wrangler d1` keeps this database in .wrangler/state, and
+# `astro dev` reaches it through the adapter's platformProxy. No Cloudflare
+# account and no remote database are involved, and none is created by anything
+# in this repo.
+#
+# When it is time to go live, create the real database once with
+#   npx wrangler d1 create vigorix_orders
+# and paste the returned database_id over the placeholder below. The migrations
+# in migrations/ are the same either way.
+# ---------------------------------------------------------------------------
+[[d1_databases]]
+binding = "ORDERS_DB"
+database_name = "vigorix_orders"
+database_id = "local-only-placeholder"
+migrations_dir = "migrations"
+
+# PayPal credentials are NOT here. They live in .env locally and in Cloudflare
+# environment variables in production; putting a secret in this file would put
+# it in git history permanently.
