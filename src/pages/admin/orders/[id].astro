@@ -1,0 +1,10 @@
+---
+import AdminLayout from "../../../layouts/AdminLayout.astro";
+export const prerender = false;
+---
+<AdminLayout title="Order — Vigorix Prime Admin">
+  <p class="ad-back"><a href="/admin/orders">&larr; All orders</a></p>
+  <div data-order-detail>
+    <p class="ad-loading">Loading…</p>
+  </div>
+</AdminLayout>

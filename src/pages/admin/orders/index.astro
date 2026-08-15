@@ -1,0 +1,45 @@
+---
+import AdminLayout from "../../../layouts/AdminLayout.astro";
+export const prerender = false;
+---
+<AdminLayout title="Orders — Vigorix Prime Admin">
+  <div class="ad-toolbar">
+    <form class="ad-filters" data-orders-filters onsubmit="return false">
+      <label class="sr-only" for="q">Search orders</label>
+      <input id="q" name="q" type="search" placeholder="Order ID, email or name" data-filter-q />
+      <label class="sr-only" for="status">Filter by status</label>
+      <select id="status" name="status" data-filter-status>
+        <option value="">All statuses</option>
+      </select>
+      <button type="button" class="btn btn-shop" data-filter-apply>Search</button>
+      <button type="button" class="ad-clear" data-filter-clear>Clear</button>
+    </form>
+    <p class="ad-count" data-orders-count></p>
+  </div>
+
+  <div class="ad-table-wrap">
+    <table class="ad-table">
+      <thead>
+        <tr>
+          <th scope="col">Order ID</th>
+          <th scope="col">Customer</th>
+          <th scope="col">Date</th>
+          <th scope="col">Items</th>
+          <th scope="col">Total</th>
+          <th scope="col">Server</th>
+          <th scope="col">Status</th>
+          <th scope="col">Tracking</th>
+        </tr>
+      </thead>
+      <tbody data-orders-body></tbody>
+    </table>
+  </div>
+
+  <p class="ad-empty" data-orders-empty hidden>No orders match that search.</p>
+
+  <nav class="ad-pager" data-orders-pager hidden aria-label="Pagination">
+    <button type="button" data-page-prev>&larr; Newer</button>
+    <span data-page-label></span>
+    <button type="button" data-page-next>Older &rarr;</button>
+  </nav>
+</AdminLayout>

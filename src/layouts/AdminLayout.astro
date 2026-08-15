@@ -1,0 +1,50 @@
+---
+// Shell for the Orders screens. Deliberately not BaseLayout: no shop nav, no
+// cart, and never indexed — these pages show customer data.
+import "../styles/global.css";
+import "../styles/admin.css";
+
+interface Props {
+  title: string;
+}
+const { title } = Astro.props;
+---
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="robots" content="noindex, nofollow" />
+  <link rel="icon" type="image/png" href="/favicon.png" />
+  <title>{title}</title>
+</head>
+<body class="admin-body">
+  <header class="ad-header">
+    <div class="ad-header-inner">
+      <a href="/admin/orders" class="ad-brand">Vigorix Prime <span>Orders</span></a>
+      <nav class="ad-nav">
+        <a href="/admin/index.html">Content CMS</a>
+        <span class="ad-who" data-admin-who hidden></span>
+        <button type="button" class="ad-logout" data-admin-logout hidden>Log out</button>
+      </nav>
+    </div>
+  </header>
+
+  <!-- Shown until a session is confirmed. The data below never renders without one. -->
+  <div class="ad-gate" data-admin-gate hidden>
+    <h1>Sign in to view orders</h1>
+    <p class="ad-gate-note" data-gate-note>Checking your session…</p>
+    <button type="button" class="btn btn-shop" data-admin-login hidden>Sign in with GitHub</button>
+    <p class="ad-gate-help">
+      These screens show customer names, addresses and payment records. Access is
+      limited to the GitHub accounts listed in <code>ADMIN_GITHUB_LOGINS</code>.
+    </p>
+  </div>
+
+  <main class="ad-main" data-admin-main hidden>
+    <slot />
+  </main>
+
+  <script src="/js/admin.js" is:inline></script>
+</body>
+</html>
