@@ -3,7 +3,7 @@
  * collection and site.json. This is the ONLY thing that feeds prices into
  * src/lib/pricing.ts in production.
  */
-import { getCollection } from "astro:content";
+import { getShopProducts } from "./products";
 import site from "../data/site.json";
 import { CART_CONFIG, readShipping } from "./cart-config";
 import type { Catalogue, PricingContext, ShippingSettings } from "./pricing";
@@ -60,11 +60,17 @@ export function shippingSettings(): ShippingSettings {
 }
 
 /**
- * Production entry point. Draft products are excluded exactly as they are from
- * the shop pages, so a placeholder can never be priced and sold.
+ * Production entry point.
+ *
+ * Visibility comes from getShopProducts() — the same rule the shop pages use —
+ * so what can be bought is exactly what can be seen. In production that
+ * excludes drafts; a build containing one fails outright (scripts/draft-guard),
+ * so a placeholder can never be priced and sold. Locally it means a draft you
+ * can put in the cart is also a draft you can check out, instead of the server
+ * silently refusing every order with "no such product".
  */
 export async function loadPricingContext(): Promise<PricingContext> {
-  const products = (await getCollection("products", ({ data }) => !data.draft)) as unknown as ProductLike[];
+  const products = (await getShopProducts()) as unknown as ProductLike[];
   return {
     catalogue: toCatalogue(products),
     shipping: shippingSettings(),
