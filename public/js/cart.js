@@ -591,6 +591,17 @@
     });
     if (closeBtn) closeBtn.addEventListener("click", close);
 
+    // Takes the shopper to the checkout page. render() decides whether the
+    // button is usable at all (empty cart, below the minimum, or a line that
+    // went out of stock), so this only has to handle the allowed case.
+    if (checkoutBtn) {
+      checkoutBtn.addEventListener("click", function () {
+        if (checkoutBtn.disabled) return;
+        close();
+        window.location.href = "/checkout";
+      });
+    }
+
     // Click on the backdrop (the dialog element itself) dismisses.
     drawer.addEventListener("click", function (e) { if (e.target === drawer) close(); });
     drawer.addEventListener("close", function () { document.body.classList.remove("cart-open"); });
