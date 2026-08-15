@@ -1,0 +1,45 @@
+---
+// Full-screen checkout shell.
+//
+// Deliberately NOT BaseLayout: checkout has its own stripped header (one way
+// back to the site, no nav, no cart button competing with the page itself) and
+// must never be indexed. It is still a real route rather than an overlay, so
+// the URL changes, Back works, and a reload keeps you where you were.
+import site from "../data/site.json";
+import "../styles/global.css";
+import "../styles/checkout.css";
+
+interface Props {
+  title: string;
+}
+const { title } = Astro.props;
+const { logoPre, logoAccent } = site;
+---
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <!-- Checkout must stay out of search results entirely. -->
+  <meta name="robots" content="noindex, nofollow" />
+  <link rel="icon" type="image/png" href="/favicon.png" />
+  <title>{title}</title>
+  <Fragment set:html={site.code.customHead} />
+</head>
+<body class="checkout-body">
+  <header class="co-header">
+    <div class="co-header-inner">
+      <a href="/" class="logo">
+        <img src="/logo.png" alt="Vigorix Prime logo" class="logo-mark" />{logoPre}<span>{logoAccent}</span>
+      </a>
+      <a href="/shop" class="co-back">&larr; Back to site</a>
+    </div>
+  </header>
+
+  <slot />
+
+  <script src="/js/cart.js" is:inline></script>
+  <script src="/js/checkout.js" is:inline></script>
+  <Fragment set:html={site.code.customBody} />
+</body>
+</html>

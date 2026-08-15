@@ -1,0 +1,222 @@
+---
+import CheckoutLayout from "../layouts/CheckoutLayout.astro";
+import { COUNTRIES, ADDRESS_RULES } from "../lib/countries";
+
+// PHASE 2 SCOPE: layout, validation and the order model only.
+// No payment gateway, no server endpoint, no card data anywhere on this page.
+// Phase 3 renders the real payment buttons into #payment-buttons.
+---
+<CheckoutLayout title="Checkout — Vigorix Prime">
+  <script type="application/json" id="co-address-rules" set:html={JSON.stringify(ADDRESS_RULES)} />
+
+  <main class="co-main" id="checkout">
+    <!-- Shown instead of the form when the cart is empty. -->
+    <div class="co-empty" data-co-empty hidden>
+      <h1>Your cart is empty</h1>
+      <p>There is nothing to check out. Taking you back to the shop…</p>
+      <a class="btn btn-shop" href="/shop">Go to the shop now</a>
+    </div>
+
+    <div class="co-grid" data-co-grid hidden>
+      <!-- ============================ LEFT ============================ -->
+      <div class="co-left">
+        <!-- 1. Progress -->
+        <nav class="co-steps" aria-label="Checkout progress">
+          <ol>
+            <li><button type="button" class="co-step is-current" data-step-to="review" aria-current="step"><span class="co-step-n">1</span> Review Cart</button></li>
+            <li><button type="button" class="co-step" data-step-to="delivery"><span class="co-step-n">2</span> Shipping &amp; Delivery</button></li>
+            <li><button type="button" class="co-step" data-step-to="payment"><span class="co-step-n">3</span> Payment</button></li>
+          </ol>
+        </nav>
+
+        <!-- 2. Review cart -->
+        <section class="co-block" id="review" tabindex="-1" aria-labelledby="review-h">
+          <div class="co-block-head">
+            <h2 id="review-h">Review cart</h2>
+            <a class="co-edit" href="/shop">Edit</a>
+          </div>
+          <p class="co-stock-warning" data-co-stock-warning hidden role="alert"></p>
+          <ul class="co-lines" data-co-lines></ul>
+        </section>
+
+        <form class="co-form" data-co-form novalidate>
+          <!-- 3. Contact -->
+          <section class="co-block" id="contact" aria-labelledby="contact-h">
+            <div class="co-block-head"><h2 id="contact-h">Contact</h2></div>
+            <div class="co-field">
+              <label for="email">Email address</label>
+              <input id="email" name="email" type="email" autocomplete="email" inputmode="email"
+                     aria-describedby="email-err" required />
+              <p class="co-error" id="email-err" data-error-for="email" hidden></p>
+              <p class="co-hint">Order confirmation and delivery updates go here.</p>
+            </div>
+          </section>
+
+          <!-- 4. Delivery -->
+          <section class="co-block" id="delivery" tabindex="-1" aria-labelledby="delivery-h">
+            <div class="co-block-head"><h2 id="delivery-h">Delivery address</h2></div>
+            <div class="co-row">
+              <div class="co-field">
+                <label for="firstName">First name</label>
+                <input id="firstName" name="firstName" autocomplete="given-name" aria-describedby="firstName-err" required />
+                <p class="co-error" id="firstName-err" data-error-for="firstName" hidden></p>
+              </div>
+              <div class="co-field">
+                <label for="lastName">Last name</label>
+                <input id="lastName" name="lastName" autocomplete="family-name" aria-describedby="lastName-err" required />
+                <p class="co-error" id="lastName-err" data-error-for="lastName" hidden></p>
+              </div>
+            </div>
+
+            <div class="co-field">
+              <label for="country">Country</label>
+              <select id="country" name="country" autocomplete="country" aria-describedby="country-err" required>
+                <option value="">Select a country…</option>
+                {COUNTRIES.map((c) => <option value={c.code}>{c.name}</option>)}
+              </select>
+              <p class="co-error" id="country-err" data-error-for="country" hidden></p>
+            </div>
+
+            <div class="co-field">
+              <label for="addressLine1">Address</label>
+              <input id="addressLine1" name="addressLine1" autocomplete="address-line1" aria-describedby="addressLine1-err" required />
+              <p class="co-error" id="addressLine1-err" data-error-for="addressLine1" hidden></p>
+            </div>
+
+            <div class="co-field">
+              <label for="addressLine2">Apartment, suite, etc. <span class="co-optional">(optional)</span></label>
+              <input id="addressLine2" name="addressLine2" autocomplete="address-line2" />
+            </div>
+
+            <div class="co-row">
+              <div class="co-field">
+                <label for="city">City</label>
+                <input id="city" name="city" autocomplete="address-level2" aria-describedby="city-err" required />
+                <p class="co-error" id="city-err" data-error-for="city" hidden></p>
+              </div>
+              <div class="co-field">
+                <!-- Label and requiredness are rewritten from the country. -->
+                <label for="region" data-region-label>Region <span class="co-optional" data-region-optional>(optional)</span></label>
+                <input id="region" name="region" autocomplete="address-level1" aria-describedby="region-err" />
+                <p class="co-error" id="region-err" data-error-for="region" hidden></p>
+              </div>
+            </div>
+
+            <div class="co-row">
+              <div class="co-field" data-postal-field>
+                <label for="postalCode">Postal code</label>
+                <input id="postalCode" name="postalCode" autocomplete="postal-code" aria-describedby="postalCode-err" />
+                <p class="co-error" id="postalCode-err" data-error-for="postalCode" hidden></p>
+              </div>
+              <div class="co-field">
+                <label for="phone">Phone <span class="co-optional">(optional)</span></label>
+                <input id="phone" name="phone" type="tel" autocomplete="tel" aria-describedby="phone-err" />
+                <p class="co-error" id="phone-err" data-error-for="phone" hidden></p>
+                <p class="co-hint">Only used if the courier needs to reach you.</p>
+              </div>
+            </div>
+          </section>
+
+          <!-- 5. Shipping method -->
+          <section class="co-block" id="shipping-method" aria-labelledby="ship-h">
+            <div class="co-block-head"><h2 id="ship-h">Shipping method</h2></div>
+            <div data-co-shipping-methods></div>
+          </section>
+
+          <!-- 6. Payment -->
+          <section class="co-block" id="payment" tabindex="-1" aria-labelledby="pay-h">
+            <div class="co-block-head"><h2 id="pay-h">Payment</h2></div>
+
+            <ul class="co-trust">
+              <li class="co-trust-item">
+                <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" focusable="false">
+                  <path d="M12 2 4 5v6c0 5 3.4 9.2 8 11 4.6-1.8 8-6 8-11V5l-8-3Z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round" />
+                </svg>
+                <span class="co-trust-title">No card details on this site</span>
+                <span class="co-trust-sub">Payment is handled entirely by the provider, never by us.</span>
+              </li>
+              <li class="co-trust-item">
+                <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" focusable="false">
+                  <path d="M6 10V8a6 6 0 1 1 12 0v2h1v11H5V10h1Z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round" />
+                </svg>
+                <span class="co-trust-title">TODO — payment provider</span>
+                <span class="co-trust-sub">Filled in once the provider is chosen in the next step.</span>
+              </li>
+              <li class="co-trust-item">
+                <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" focusable="false">
+                  <path d="M20 12a8 8 0 1 1-2.3-5.6M20 4v5h-5" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" />
+                </svg>
+                <span class="co-trust-title">TODO — returns window</span>
+                <span class="co-trust-sub">Confirm the returns policy before this page goes live.</span>
+              </li>
+            </ul>
+
+            <!-- Phase 3 renders the real payment buttons here. The id is stable
+                 and the box is already tall enough for two stacked buttons, so
+                 nothing below it shifts when they appear (CLS). -->
+            <div class="co-payment-slot" id="payment-buttons" data-payment-slot aria-live="polite">
+              <p class="co-payment-pending">Payment is not connected yet — coming in the next step.</p>
+            </div>
+
+            <button type="submit" class="buy-btn co-submit" data-co-submit>Review order</button>
+          </section>
+
+          <!-- 7. Disclaimer -->
+          <section class="co-block co-disclaimer" aria-labelledby="legal-h">
+            <h2 id="legal-h" class="sr-only">Legal</h2>
+            <p>
+              By placing an order you agree to our
+              <a href="/privacy-policy">Privacy Policy</a> and
+              <a href="/affiliate-disclosure">Affiliate &amp; Commerce Disclosure</a>.
+            </p>
+            <p>
+              Payment will be processed by an external provider. This site never
+              sees or stores card numbers, expiry dates or security codes.
+            </p>
+            <p>
+              These are general wellness products, not medicines or medical
+              devices. Individual results vary. Speak to a qualified healthcare
+              professional about any specific health concern.
+            </p>
+          </section>
+        </form>
+      </div>
+
+      <!-- ============================ RIGHT =========================== -->
+      <aside class="co-summary" aria-labelledby="summary-h">
+        <button type="button" class="co-mini-summary" data-summary-toggle aria-expanded="false" aria-controls="summary-body">
+          <span>Order summary</span>
+          <span class="co-mini-total" data-co-mini-total>—</span>
+          <span class="co-mini-caret" aria-hidden="true">▾</span>
+        </button>
+
+        <div class="co-summary-body" id="summary-body" data-summary-body>
+          <h2 id="summary-h" class="co-summary-h">Order summary</h2>
+          <ul class="co-sum-lines" data-co-sum-lines></ul>
+
+          <dl class="co-totals">
+            <div><dt>Subtotal</dt><dd data-co-subtotal>—</dd></div>
+            <div><dt>Shipping</dt><dd data-co-shipping>—</dd></div>
+            <div class="co-grand"><dt>Total</dt><dd data-co-total>—</dd></div>
+          </dl>
+          <p class="co-ship-rule" data-co-ship-rule hidden></p>
+
+          <p class="co-summary-trust">
+            Prices in USD. Stock and totals are confirmed again before payment.
+          </p>
+        </div>
+      </aside>
+    </div>
+
+    <!-- Dev output for the draft order object (phase 2 deliverable). -->
+    <section class="co-devout" data-co-devout hidden aria-labelledby="devout-h">
+      <h2 id="devout-h">Draft order (development output)</h2>
+      <p class="co-devout-note">
+        Built in the browser and saved to <code>localStorage["vp.order.draft"]</code>,
+        which includes the email and address you typed. Nothing is sent anywhere.
+        <button type="button" class="co-clear-draft" data-co-clear-draft>Delete saved draft</button>
+      </p>
+      <pre data-co-devout-json></pre>
+    </section>
+  </main>
+</CheckoutLayout>
