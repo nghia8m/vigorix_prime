@@ -1,0 +1,58 @@
+---
+// Cart drawer — rendered on every page from BaseLayout.
+//
+// A native <dialog> is used deliberately: it gives the focus trap, Escape to
+// close, and focus restoration to the trigger for free, which hand-rolled
+// drawers usually get wrong. The slide-in is CSS on top of that.
+//
+// PHASE 2: the checkout button is inert on purpose — there is no /checkout page
+// and no payment gateway yet.
+---
+<dialog class="cart-drawer" data-cart-drawer aria-label="Shopping cart">
+  <div class="cart-panel">
+    <header class="cart-head">
+      <h2 id="cart-title">Your cart</h2>
+      <button type="button" class="cart-close" data-cart-close aria-label="Close cart">&times;</button>
+    </header>
+
+    <p class="cart-notice" data-cart-notice hidden></p>
+
+    <!-- Empty state: a designed panel, not a blank box. -->
+    <div class="cart-empty" data-cart-empty hidden>
+      <svg viewBox="0 0 24 24" width="46" height="46" aria-hidden="true" focusable="false">
+        <path d="M3 4h2l2.6 11.2a2 2 0 0 0 2 1.6h7.4a2 2 0 0 0 2-1.5L21 8H6"
+              fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+        <circle cx="10" cy="20" r="1.4" fill="currentColor" />
+        <circle cx="18" cy="20" r="1.4" fill="currentColor" />
+      </svg>
+      <p class="cart-empty-title">Your cart is empty</p>
+      <p class="cart-empty-sub">Everyday comfort and support essentials from our own Health Care range.</p>
+      <a class="btn btn-shop" href="/shop">Browse the shop</a>
+    </div>
+
+    <ul class="cart-list" data-cart-list></ul>
+
+    <footer class="cart-foot" data-cart-foot hidden>
+      <p class="cart-freeship" data-cart-freeship hidden></p>
+
+      <dl class="cart-totals">
+        <div><dt>Subtotal</dt><dd data-cart-subtotal>—</dd></div>
+        <div><dt>Shipping</dt><dd data-cart-shipping>—</dd></div>
+        <div class="cart-grand"><dt>Total</dt><dd data-cart-total>—</dd></div>
+      </dl>
+      <p class="cart-total-note" data-cart-total-note hidden>
+        Total excludes shipping, which is not calculated yet.
+      </p>
+
+      <p class="cart-min-warning" data-cart-min-warning hidden></p>
+
+      <button type="button" class="buy-btn cart-checkout" data-cart-checkout disabled>
+        Checkout
+      </button>
+      <p class="cart-phase-note">
+        Checkout is not open yet — this is the cart only. Prices, shipping and
+        stock are confirmed at checkout when it launches.
+      </p>
+    </footer>
+  </div>
+</dialog>

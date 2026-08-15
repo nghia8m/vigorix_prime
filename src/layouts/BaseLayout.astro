@@ -1,6 +1,7 @@
 ---
 import Header from "../components/Header.astro";
 import Footer from "../components/Footer.astro";
+import CartDrawer from "../components/CartDrawer.astro";
 import site from "../data/site.json";
 // Global stylesheet imported through the Astro bundler (hashed, single source
 // of truth). This replaces the old <link href="/css/style.css"> approach where
@@ -99,8 +100,10 @@ const baseGraph = {
   <Header />
   <slot />
   <Footer />
+  <CartDrawer />
 
   <script src="/js/main.js" is:inline></script>
+  <script src="/js/cart.js" is:inline></script>
 
   <!-- Custom Body Code (edited in Admin → Site Settings). -->
   <Fragment set:html={site.code.customBody} />

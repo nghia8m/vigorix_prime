@@ -137,6 +137,20 @@
     "text": "Our editors track prices across every supplement, performance product and grooming tool we recommend, and flag the best value inside each guide — so you buy when the timing is right. Start with our top-rated picks below.",
     "link": "/#best-picks"
   },
+  "shipping": {
+    "enabled": false,
+    "displayNote": "Shipping calculated at checkout",
+    "currency": "USD",
+    "freeOverCents": 5000,
+    "rates": [
+      {
+        "id": "standard",
+        "label": "Standard",
+        "flatCents": 495,
+        "etaDays": "5–10"
+      }
+    ]
+  },
   "code": {
     "customHead": "<!-- Google tag (gtag.js) -->\n<script async src=\"https://www.googletagmanager.com/gtag/js?id=G-0831NZ58NF\"></script>\n<script>\n  window.dataLayer = window.dataLayer || [];\n  function gtag(){dataLayer.push(arguments);}\n  gtag(\"js\", new Date());\n  gtag(\"config\", \"G-0831NZ58NF\");\n</script>",
     "customBody": ""

@@ -90,6 +90,39 @@
           return warnings;
         }
 
+        /** Site Settings → Shipping. Money here is in cents, so a negative or
+         *  fractional value is a data error, not a preference. */
+        function validateShipping(data) {
+          var errors = [], warnings = [];
+          var s = data.shipping;
+          if (!s || typeof s !== "object") return { errors: errors, warnings: warnings };
+
+          var rates = Array.isArray(s.rates) ? s.rates : [];
+
+          if (typeof s.freeOverCents === "number" && s.freeOverCents < 0)
+            errors.push('"Free shipping above" cannot be negative (got ' + s.freeOverCents + ").");
+
+          rates.forEach(function (r, i) {
+            if (!r) return;
+            if (typeof r.flatCents === "number" && r.flatCents < 0)
+              errors.push('Rate "' + (r.label || r.id || i + 1) + '" has a negative flat rate (' + r.flatCents + ").");
+          });
+
+          var dupes = duplicates(rates.map(function (r) { return r && r.id; }));
+          if (dupes.length)
+            errors.push("Shipping rate id used more than once: " + dupes.join(", ") + ".");
+
+          if (s.enabled === true && rates.length === 0)
+            errors.push("Shipping is switched ON but there are no rates. Add at least one rate, or switch it back OFF.");
+
+          if (s.enabled === true && typeof s.displayNote === "string" &&
+              /calculated at checkout/i.test(s.displayNote))
+            warnings.push('Shipping is ON but the note still reads "' + s.displayNote +
+                          '". That note is what shoppers saw while shipping was unset — update it.');
+
+          return { errors: errors, warnings: warnings };
+        }
+
         function validateProduct(data) {
           var errors = [], warnings = [];
           var variants = data.variants || [];
@@ -132,15 +165,19 @@
               var entry = payload && payload.entry;
               var data = toPlain(entry && entry.get ? entry.get("data") : entry && entry.data) || {};
 
+              // Site Settings carries a "shipping" block; products do not.
+              var isSettings = "shipping" in data && "footer" in data;
               // Only the Shop Products collection carries these two keys together.
-              if (!("purchaseUrl" in data) || !("images" in data)) return;
+              var isProduct = "purchaseUrl" in data && "images" in data;
+              if (!isSettings && !isProduct) return;
 
-              var result = validateProduct(data);
+              var result = isSettings ? validateShipping(data) : validateProduct(data);
               // Exposed so the headless test can read what the handler decided.
               window.__vpValidation = result;
 
               if (result.errors.length) {
-                var message = "Cannot save this product:\n\n• " + result.errors.join("\n• ");
+                var message = (isSettings ? "Cannot save these settings:" : "Cannot save this product:") +
+                  "\n\n• " + result.errors.join("\n• ");
                 window.alert(message);
                 throw new Error(message);
               }
@@ -163,6 +200,11 @@
               if (warnings.length) window.alert("Image check:\n\n• " + warnings.join("\n• "));
             },
           });
+
+          // Exposed for the automated checks, which exercise the rules directly
+          // rather than driving the whole editor UI.
+          window.__vpValidateShipping = validateShipping;
+          window.__vpValidateProduct = validateProduct;
 
           window.__vpValidationReady = true;
           return true;

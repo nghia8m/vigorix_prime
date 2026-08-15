@@ -294,6 +294,53 @@ collections:
               - { name: "title", label: "Title", widget: "string" }
               - { name: "text", label: "Description", widget: "text" }
               - { name: "link", label: "Link (URL or #anchor)", widget: "string" }
+          # -----------------------------------------------------------------
+          # SHIPPING — read by the cart at /shop and on every product page.
+          # All money here is in CENTS (whole numbers), never dollars, because
+          # the cart does every calculation in integer cents and only formats
+          # for display. 495 means $4.95.
+          # -----------------------------------------------------------------
+          - name: "shipping"
+            label: "Shipping"
+            widget: "object"
+            fields:
+              - name: "enabled"
+                label: "Shipping rates are confirmed"
+                widget: "boolean"
+                default: false
+                hint: "Leave OFF until the shipping policy is agreed — the cart then shows the note below instead of a figure. Turning it ON makes the cart quote real money to shoppers."
+              - name: "displayNote"
+                label: "Note shown while shipping is OFF"
+                widget: "string"
+                default: "Shipping calculated at checkout"
+                hint: "Shown in place of an amount. Once shipping is ON this note is not used, so it should no longer say 'calculated at checkout'."
+              - { name: "currency", label: "Currency code", widget: "string", default: "USD" }
+              - name: "freeOverCents"
+                label: "Free shipping above (CENTS)"
+                widget: "number"
+                value_type: "int"
+                min: 0
+                default: 5000
+                hint: "In cents: 5000 = $50.00. The threshold is EXCLUSIVE — an order of exactly $50.00 still pays postage, $50.01 ships free."
+              - name: "rates"
+                label: "Shipping rates"
+                label_singular: "Rate"
+                widget: "list"
+                allow_reorder: true
+                hint: "The cart uses the FIRST rate in this list. Drag to change which one that is. Every id must be unique."
+                summary: "{{fields.label}} — {{fields.flatCents}}c"
+                fields:
+                  - { name: "id", label: "Internal id (unique, e.g. standard)", widget: "string" }
+                  - { name: "label", label: "Name shown to the shopper", widget: "string" }
+                  - name: "flatCents"
+                    label: "Flat rate (CENTS)"
+                    widget: "number"
+                    value_type: "int"
+                    min: 0
+                    default: 495
+                    hint: "In cents: 495 = $4.95. Whole numbers only — do not type 4.95."
+                  - { name: "etaDays", label: "Delivery estimate (e.g. 5–10)", widget: "string", required: false, default: "" }
+
           - name: "code"
             label: "Site-wide Code"
             widget: "object"

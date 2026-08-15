@@ -144,14 +144,30 @@ const TRUST_ICONS: Record<string, string> = {
     </p>
   )}
 
+  <!-- Cart is the primary action. The external buy link stays as a secondary
+       route for products whose checkout still lives on another site. -->
+  <button
+    type="button"
+    class="buy-btn add-to-cart"
+    data-add-to-cart
+    data-product-slug={data.slug}
+    data-variant-id={variant?.id ?? ""}
+    disabled={stock === "out"}
+  >
+    <span data-add-label>{stock === "out" ? "Out of stock" : "Add to cart"}</span>
+  </button>
+  <p class="cart-feedback" data-add-feedback role="status" aria-live="polite" hidden></p>
+
   {hasAnyUrl && (
-    <a class="buy-btn" href={anchorHref} data-buy hidden={!purchasable} target="_blank" rel="noopener">
+    <a class="buy-btn buy-btn-alt" href={anchorHref} data-buy hidden={!purchasable} target="_blank" rel="noopener">
       <span data-buy-label>{buyLabel(stock)}</span>
     </a>
   )}
-  <button class="buy-btn" type="button" disabled data-buy-disabled hidden={purchasable}>
-    <span data-buy-disabled-label>{stock === "out" ? "Out of stock" : "Purchase link coming soon"}</span>
-  </button>
+  {hasAnyUrl && (
+    <button class="buy-btn buy-btn-alt" type="button" disabled data-buy-disabled hidden={purchasable}>
+      <span data-buy-disabled-label>{stock === "out" ? "Out of stock" : "Purchase link coming soon"}</span>
+    </button>
+  )}
 
   <p class="buybox-handoff" data-handoff hidden={!(purchasable && host)}>
     Checkout is completed on <strong data-handoff-host>{host}</strong>, not on vigorixprime.com.
@@ -194,13 +210,15 @@ const TRUST_ICONS: Record<string, string> = {
       {data.compareAt ? formatMoney(data.compareAt, data.currency) : ""}
     </s>
   </div>
-  {hasAnyUrl && (
-    <a class="buy-btn" href={anchorHref} data-buy hidden={!purchasable} target="_blank" rel="noopener">
-      <span data-buy-label>{buyLabel(stock)}</span>
-    </a>
-  )}
-  <button class="buy-btn" type="button" disabled data-buy-disabled hidden={purchasable}>
-    <span data-buy-disabled-label>{stock === "out" ? "Out of stock" : "Coming soon"}</span>
+  <button
+    type="button"
+    class="buy-btn add-to-cart"
+    data-add-to-cart
+    data-product-slug={data.slug}
+    data-variant-id={variant?.id ?? ""}
+    disabled={stock === "out"}
+  >
+    <span data-add-label>{stock === "out" ? "Out of stock" : "Add to cart"}</span>
   </button>
 </div>
 
@@ -298,6 +316,15 @@ const TRUST_ICONS: Record<string, string> = {
       all("[data-handoff]").forEach(function (el) { el.hidden = !(buyable && host); });
       all("[data-handoff-host]").forEach(function (el) { el.textContent = host; });
 
+      // Keep the cart buttons pointing at the variant actually selected.
+      all("[data-add-to-cart]").forEach(function (el) {
+        el.setAttribute("data-variant-id", v ? v.id : "");
+        el.disabled = stock === "out";
+      });
+      all("[data-add-label]").forEach(function (el) {
+        el.textContent = stock === "out" ? "Out of stock" : "Add to cart";
+      });
+
       if (v && window.vpGallery) window.vpGallery.show(v.imageIndex || 0);
 
       // Reflect the choice in the URL so a link can be shared.
@@ -323,6 +350,26 @@ const TRUST_ICONS: Record<string, string> = {
         }
       }
     })();
+
+    // Add to cart. The store owns the stock check as well, so a stale button
+    // cannot slip an out-of-stock variant into the cart.
+    all("[data-add-to-cart]").forEach(function (btn) {
+      btn.addEventListener("click", function () {
+        var feedback = document.querySelector("[data-add-feedback]");
+        var result = window.vpCart.add(
+          btn.getAttribute("data-product-slug"),
+          btn.getAttribute("data-variant-id") || "",
+          1
+        );
+        if (feedback) {
+          feedback.hidden = false;
+          feedback.textContent = result.ok ? "Added to your cart." : result.message;
+          feedback.className = "cart-feedback" + (result.ok ? " is-ok" : " is-error");
+        }
+        // Opening the drawer is this button's decision, not the store's.
+        if (result.ok && window.vpCartUI) window.vpCartUI.open();
+      });
+    });
 
     inputs.forEach(function (el) {
       el.addEventListener("change", function () { render(true); });

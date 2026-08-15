@@ -20,7 +20,19 @@ const isShop = (href: string) => href.split("#")[0].replace(/\/+$/, "") === "/sh
 <header class="site-header">
   <div class="container">
     <a href="/" class="logo"><img src="/logo.png" alt="Vigorix Prime logo" class="logo-mark" />{logoPre}<span>{logoAccent}</span></a>
-    <button class="nav-toggle" aria-label="Toggle menu" aria-expanded="false" aria-controls="main-nav">&#9776;</button>
+    <div class="header-actions">
+      <button type="button" class="cart-button" data-cart-open aria-label="Open cart">
+        <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" focusable="false">
+          <path d="M3 4h2l2.6 11.2a2 2 0 0 0 2 1.6h7.4a2 2 0 0 0 2-1.5L21 8H6"
+                fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" />
+          <circle cx="10" cy="20" r="1.5" fill="currentColor" />
+          <circle cx="18" cy="20" r="1.5" fill="currentColor" />
+        </svg>
+        <span class="cart-badge" data-cart-badge hidden>0</span>
+        <span class="sr-only" data-cart-count-label>0 items in cart</span>
+      </button>
+      <button class="nav-toggle" aria-label="Toggle menu" aria-expanded="false" aria-controls="main-nav">&#9776;</button>
+    </div>
     <nav class="main-nav" id="main-nav" aria-label="Main">
       <ul>
         {header.nav.map((item) => (
