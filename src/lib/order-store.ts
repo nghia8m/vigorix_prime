@@ -9,10 +9,16 @@
  * write the row later (the webhook).
  */
 
+/** A prepared, bound statement — what D1's batch() accepts. */
+export interface BoundStatement {
+  run: () => Promise<unknown>;
+  first?: () => Promise<unknown>;
+}
+
 export interface OrderStoreDb {
-  prepare: (sql: string) => {
-    bind: (...args: unknown[]) => { run: () => Promise<unknown>; first?: () => Promise<unknown> };
-  };
+  prepare: (sql: string) => { bind: (...args: unknown[]) => BoundStatement };
+  /** D1 runs a batch inside a single implicit transaction. */
+  batch?: (statements: BoundStatement[]) => Promise<unknown>;
 }
 
 export interface OrderLineRow {
@@ -56,8 +62,17 @@ const nowIso = () => new Date().toISOString();
  */
 export async function upsertOrder(db: OrderStoreDb, o: OrderRecord): Promise<void> {
   const stamp = nowIso();
-  await db
-    .prepare(
+
+  // ONE transaction. The order row, the clearing of its old lines and the new
+  // lines all land together or not at all. Run separately, a delete that
+  // succeeded followed by an insert that failed would leave the order with no
+  // lines at all — worse than the duplicate rows this replaced, because then
+  // nobody knows what the customer bought.
+  const statements: BoundStatement[] = [];
+
+  statements.push(
+    db
+      .prepare(
       `INSERT INTO orders (
         order_id, paypal_order_id, paypal_capture_id, status, currency,
         subtotal_cents, shipping_cents, total_cents,
@@ -83,27 +98,42 @@ export async function upsertOrder(db: OrderStoreDb, o: OrderRecord): Promise<voi
       o.address.region || null, o.address.postalCode || null, o.address.country ?? "",
       JSON.stringify(o.raw).slice(0, 60000), stamp, stamp
     )
-    .run();
+  );
 
   // Replace, do not append. A capture can legitimately be replayed (PayPal
   // returns the same capture for a repeated PayPal-Request-Id, and the webhook
   // may arrive for an order that already exists); appending would double the
   // lines and a fulfilment screen would show twice the goods to ship.
-  await db.prepare(`DELETE FROM order_lines WHERE order_id = ?`).bind(o.orderId).run();
+  statements.push(db.prepare(`DELETE FROM order_lines WHERE order_id = ?`).bind(o.orderId));
 
   for (const line of o.lines) {
-    await db
-      .prepare(
-        `INSERT INTO order_lines (order_id, product_slug, variant_id, name, variant_label, sku,
-          unit_price_cents, qty, line_total_cents) VALUES (?,?,?,?,?,?,?,?,?)`
-      )
-      .bind(
-        o.orderId, line.productSlug, line.variantId, line.name,
-        line.variantLabel || null, line.sku || null,
-        line.unitPriceCents, line.qty, line.lineTotalCents
-      )
-      .run();
+    statements.push(
+      db
+        .prepare(
+          `INSERT INTO order_lines (order_id, product_slug, variant_id, name, variant_label, sku,
+            unit_price_cents, qty, line_total_cents) VALUES (?,?,?,?,?,?,?,?,?)`
+        )
+        .bind(
+          o.orderId, line.productSlug, line.variantId, line.name,
+          line.variantLabel || null, line.sku || null,
+          line.unitPriceCents, line.qty, line.lineTotalCents
+        )
+    );
   }
+
+  if (typeof db.batch === "function") {
+    await db.batch(statements);
+    return;
+  }
+
+  // No batch support (a stub, or a driver without it). Running these one by one
+  // is NOT atomic, so it is announced rather than done quietly.
+  console.warn(
+    "[VP-NO-BATCH] Database has no batch(); order",
+    o.orderId,
+    "written without a transaction — a partial failure can leave it with no lines."
+  );
+  for (const stmt of statements) await stmt.run();
 }
 
 export async function recordEvent(
