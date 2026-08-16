@@ -12,7 +12,14 @@
 backend:
   name: github
   repo: nghia8m/vigorix_prime
-  branch: main
+  # The shop lives on this branch and has not been merged, so pointing the CMS
+  # at main showed "Shop Products 0" — the config is read from this site, but
+  # the CONTENT is read from GitHub, and main has no products in it.
+  #
+  # Editing here therefore commits to shop-phase-1, not to the branch the live
+  # site is built from. Change this back to main at the same time the shop is
+  # merged, or the CMS will keep writing to a branch nobody deploys.
+  branch: shop-phase-1
   # Single sign-on: base_url is rewritten to this site own origin by
   # src/pages/admin/config.yml.ts, and auth_endpoint points at our endpoint
   # rather than at GitHub. Pressing "Sign In with GitHub" therefore reuses the
