@@ -1,6 +1,5 @@
 ---
 import CheckoutLayout from "../layouts/CheckoutLayout.astro";
-import ShopTestBanner from "../components/ShopTestBanner.astro";
 import { COUNTRIES, ADDRESS_RULES } from "../lib/countries";
 
 // PHASE 2 SCOPE: layout, validation and the order model only.
@@ -11,10 +10,6 @@ import { COUNTRIES, ADDRESS_RULES } from "../lib/countries";
   <script type="application/json" id="co-address-rules" set:html={JSON.stringify(ADDRESS_RULES)} />
 
   <main class="co-main" id="checkout">
-    {/* The most important place to say it: the shopper is about to hand over
-        card details. */}
-    <ShopTestBanner />
-
     <!-- Shown instead of the form when the cart is empty. -->
     <div class="co-empty" data-co-empty hidden>
       <h1>Your cart is empty</h1>

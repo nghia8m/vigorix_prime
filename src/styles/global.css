@@ -1531,30 +1531,4 @@ body.cart-open { overflow: hidden; }
   max-width: 70ch;
 }
 
-/* ---------- Shop test-mode bar ----------
-   Deliberately loud. This says the shop cannot take a real order; a shopper who
-   misses it has wasted their time, and we have burned their trust for nothing.
-   It disappears on its own once live keys and real products are in place. */
-.shop-testbar {
-  background: #8a4b00;
-  color: var(--white);
-  padding: 12px 0;
-  font-size: 0.9rem;
-  line-height: 1.5;
-}
-.shop-testbar .container {
-  display: flex;
-  align-items: baseline;
-  gap: 12px;
-  flex-wrap: wrap;
-}
-.shop-testbar strong {
-  background: var(--white);
-  color: #8a4b00;
-  padding: 2px 10px;
-  border-radius: 4px;
-  font-size: 0.78rem;
-  text-transform: uppercase;
-  letter-spacing: 0.6px;
-  white-space: nowrap;
-}
+

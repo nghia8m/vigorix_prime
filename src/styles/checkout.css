@@ -392,7 +392,3 @@
   .co-secure-note { white-space: normal; }
 }
 
-/* The test bar sits above the checkout grid; it uses .container from global.css
-   but the checkout page has its own width, so keep them aligned. */
-.co-main .shop-testbar { margin: -24px -20px 20px; border-radius: 0; }
-.co-main .shop-testbar .container { max-width: var(--maxw); padding: 0 20px; }

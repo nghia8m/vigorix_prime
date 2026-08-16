@@ -2,7 +2,6 @@
 import BaseLayout from "../../layouts/BaseLayout.astro";
 import OwnProductCard from "../../components/OwnProductCard.astro";
 import { getShopProducts, groupShopProducts } from "../../lib/products";
-import ShopTestBanner from "../../components/ShopTestBanner.astro";
 import { shopIsTesting } from "../../lib/shop-mode";
 import site from "../../data/site.json";
 
@@ -33,7 +32,6 @@ const heading = groupNames.length === 1 ? `Shop — ${groupNames[0]}` : "Shop";
   noindex={shopIsTesting()}
 >
   <main>
-  <ShopTestBanner />
   <section class="hero" style="padding:56px 0;">
     <div class="container">
       <h1>{heading}</h1>
