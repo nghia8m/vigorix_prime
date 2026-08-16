@@ -51,7 +51,27 @@ export const POST: APIRoute = async ({ request, locals, clientAddress }) => {
 
   // Always run the hash comparison, even when the email is wrong, so the reply
   // takes the same time either way.
-  const passwordOk = await verifyPassword(password, env.passwordHash);
+  //
+  // Wrapped because a throw here reaches the browser as a bare 500 with an
+  // empty body — the login screen then shows nothing at all and there is no
+  // way to tell a wrong password from a broken server. That is exactly what
+  // happened when the hash carried more PBKDF2 iterations than Workers allows.
+  let passwordOk = false;
+  try {
+    passwordOk = await verifyPassword(password, env.passwordHash);
+  } catch (err) {
+    console.error("[VP-ADMIN-HASH-ERROR] verifyPassword threw:", err);
+    return json(
+      {
+        ok: false,
+        error: "password_check_failed",
+        message:
+          "The server could not check the password. This is a configuration fault, " +
+          "not a wrong password — see the server log.",
+      },
+      500
+    );
+  }
   const emailOk = email === env.email;
 
   if (!emailOk || !passwordOk) {

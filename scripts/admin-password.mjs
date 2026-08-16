@@ -20,7 +20,10 @@ if (password.length < 12) {
   process.exit(1);
 }
 
-const ITERATIONS = 210_000;
+// Must match src/lib/admin-password.ts. Cloudflare Workers refuses PBKDF2
+// above 100,000 iterations, so a hash generated with more than that verifies
+// locally and then fails on every production login.
+const ITERATIONS = 100_000;
 const b64 = (bytes) => Buffer.from(bytes).toString("base64");
 
 const salt = crypto.getRandomValues(new Uint8Array(16));

@@ -14,7 +14,25 @@
  * login fails with no clue why.
  */
 
-const ITERATIONS = 210_000;
+/**
+ * Cloudflare Workers refuses PBKDF2 above 100,000 iterations outright:
+ *   NotSupportedError: Pbkdf2 failed: iteration counts above 100000 are not supported
+ * It is a deliberate denial-of-service guard on their side, not a bug on ours.
+ *
+ * Node has no such cap, so 210,000 worked locally for weeks and then threw on
+ * the very first real login attempt in production — an unhandled rejection, a
+ * bare 500 and an empty body.
+ *
+ * 100,000 is therefore the ceiling, not a choice. It is below the 600,000 OWASP
+ * asks of PBKDF2-SHA-256, and that gap is real: it is roughly six times cheaper
+ * to attack a stolen hash. What carries the weight instead is everything around
+ * it — one account rather than a user table, a long random password, a hash
+ * that lives only in an encrypted environment variable, and a session that
+ * expires. If the hash ever leaks, rotate the password; do not rely on the
+ * iteration count to buy time it cannot buy.
+ */
+const MAX_WORKER_ITERATIONS = 100_000;
+const ITERATIONS = MAX_WORKER_ITERATIONS;
 const KEY_LENGTH = 32;
 
 const b64 = (bytes: Uint8Array) => btoa(String.fromCharCode(...bytes));
@@ -57,6 +75,20 @@ export async function verifyPassword(password: string, stored: string): Promise<
 
   const iterations = Number(parts[1]);
   if (!Number.isInteger(iterations) || iterations < 1000) return false;
+  /* A hash generated before this cap was known would make deriveBits THROW
+     rather than return false, and an exception here is an empty 500 at the
+     login screen with nothing to read. Refuse it as a mismatch and say why in
+     the log, so the fix — regenerate the hash — is discoverable. */
+  if (iterations > MAX_WORKER_ITERATIONS) {
+    console.error(
+      "[VP-ADMIN-HASH-TOO-STRONG] ADMIN_PASSWORD_HASH was generated with",
+      iterations,
+      "iterations. Cloudflare Workers refuses anything above",
+      MAX_WORKER_ITERATIONS + ".",
+      "Nobody can log in until it is regenerated: npm run admin:password -- \"<password>\""
+    );
+    return false;
+  }
 
   let salt: Uint8Array;
   let expected: Uint8Array;
