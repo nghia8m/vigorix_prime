@@ -53,7 +53,11 @@ import { COUNTRIES, ADDRESS_RULES } from "../lib/countries";
               <input id="email" name="email" type="email" autocomplete="email" inputmode="email"
                      aria-describedby="email-err" required />
               <p class="co-error" id="email-err" data-error-for="email" hidden></p>
-              <p class="co-hint">Order confirmation and delivery updates go here.</p>
+              {/* Says what the address is FOR, not what it will receive. The
+                  site sends no email at all — there is no mail service wired
+                  in — so promising a confirmation would be a promise nothing
+                  keeps. Restore the fuller wording when sending is real. */}
+              <p class="co-hint">We use this to reach you about your order.</p>
             </div>
           </section>
 
