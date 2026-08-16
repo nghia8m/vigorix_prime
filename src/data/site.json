@@ -1,4 +1,12 @@
 {
+  "shipping": {
+    "enabled": true,
+    "perBlockCents": 2500,
+    "currency": "USD"
+  },
+  "ordering": {
+    "minQtyPerProduct": 3
+  },
   "logoPre": "Vigorix",
   "logoAccent": "Prime",
   "header": {
@@ -155,14 +163,6 @@
         "note": "Cosmetic skin care we sell ourselves. They are not reviewed, scored or ranked by our editorial team — see our disclosure."
       }
     ]
-  },
-  "ordering": {
-    "minQtyPerProduct": 3
-  },
-  "shipping": {
-    "enabled": false,
-    "perBlockCents": 2500,
-    "currency": "USD"
   },
   "code": {
     "customHead": "<!-- Google tag (gtag.js) -->\n<script async src=\"https://www.googletagmanager.com/gtag/js?id=G-0831NZ58NF\"></script>\n<script>\n  window.dataLayer = window.dataLayer || [];\n  function gtag(){dataLayer.push(arguments);}\n  gtag(\"js\", new Date());\n  gtag(\"config\", \"G-0831NZ58NF\");\n</script>",
