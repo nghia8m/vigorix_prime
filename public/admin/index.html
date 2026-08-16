@@ -90,35 +90,36 @@
           return warnings;
         }
 
-        /** Site Settings → Shipping. Money here is in cents, so a negative or
-         *  fractional value is a data error, not a preference. */
+        /** Site Settings → Shipping. One charge per pack, so there is one figure
+         *  to check. Money here is in cents: a negative or fractional value is a
+         *  data error, not a preference. */
         function validateShipping(data) {
           var errors = [], warnings = [];
           var s = data.shipping;
           if (!s || typeof s !== "object") return { errors: errors, warnings: warnings };
 
-          var rates = Array.isArray(s.rates) ? s.rates : [];
+          var per = s.perBlockCents;
 
-          if (typeof s.freeOverCents === "number" && s.freeOverCents < 0)
-            errors.push('"Free shipping above" cannot be negative (got ' + s.freeOverCents + ").");
+          if (typeof per === "number") {
+            if (per < 0)
+              errors.push('"Price per pack" cannot be negative (got ' + per + ").");
+            if (!Number.isInteger(per))
+              errors.push('"Price per pack" is in CENTS, so it must be a whole number (got ' + per +
+                          "). 2500 means $25.00.");
+          }
 
-          rates.forEach(function (r, i) {
-            if (!r) return;
-            if (typeof r.flatCents === "number" && r.flatCents < 0)
-              errors.push('Rate "' + (r.label || r.id || i + 1) + '" has a negative flat rate (' + r.flatCents + ").");
-          });
+          // Switching postage ON with nothing to charge is almost always a typo
+          // for a figure the owner meant to enter — but free shipping is a real
+          // choice, so this warns rather than blocks.
+          if (s.enabled === true && (!per || per === 0))
+            warnings.push("Shipping is ON but the price per pack is 0, so every order still ships free. " +
+                          "Enter an amount in cents, or switch shipping back OFF.");
 
-          var dupes = duplicates(rates.map(function (r) { return r && r.id; }));
-          if (dupes.length)
-            errors.push("Shipping rate id used more than once: " + dupes.join(", ") + ".");
-
-          if (s.enabled === true && rates.length === 0)
-            errors.push("Shipping is switched ON but there are no rates. Add at least one rate, or switch it back OFF.");
-
-          if (s.enabled === true && typeof s.displayNote === "string" &&
-              /calculated at checkout/i.test(s.displayNote))
-            warnings.push('Shipping is ON but the note still reads "' + s.displayNote +
-                          '". That note is what shoppers saw while shipping was unset — update it.');
+          // A price that looks like dollars rather than cents. $0.25 postage is
+          // not a real policy; 25 almost certainly meant 2500.
+          if (s.enabled === true && typeof per === "number" && per > 0 && per < 100)
+            warnings.push("Price per pack is " + per + " cents ($" + (per / 100).toFixed(2) +
+                          "). This field is in CENTS — did you mean " + per * 100 + "?");
 
           return { errors: errors, warnings: warnings };
         }
@@ -178,7 +179,12 @@
               if (result.errors.length) {
                 var message = (isSettings ? "Cannot save these settings:" : "Cannot save this product:") +
                   "\n\n• " + result.errors.join("\n• ");
-                window.alert(message);
+                // Throwing is what actually blocks the save, and the CMS reports
+                // a thrown handler with its own generic "there was an error"
+                // box. So this reason is followed by a second, vaguer dialog
+                // about the same problem — say so, or it reads as two faults.
+                window.alert(message + "\n\nNothing has been saved. The CMS will now show its own " +
+                  "generic error about this same problem — the reason is the one above.");
                 throw new Error(message);
               }
               if (result.warnings.length) {
