@@ -19,7 +19,7 @@ pages_build_output_dir = "dist"
 [[d1_databases]]
 binding = "ORDERS_DB"
 database_name = "vigorix_orders"
-database_id = "local-only-placeholder"
+database_id = "fb190ea2-8161-4876-802d-e4034996b85a"
 migrations_dir = "migrations"
 
 # PayPal credentials are NOT here. They live in .env locally and in Cloudflare
