@@ -90,13 +90,16 @@ describe("real catalogue", { skip: built ? false : "no build found — run `npm 
     assert.equal(r.code, "out_of_stock");
   });
 
-  test("shipping is currently switched off, so real orders ship FREE", () => {
-    const r = priceOrder(ctx(), {
+  // Overrides the switch rather than reading it. Whether postage is currently
+  // charged is the owner's decision, changed from the admin whenever a campaign
+  // starts; a test that asserts today's value fails the moment they use the
+  // setting as intended, which is not a defect worth reporting.
+  test("switched off, real orders ship FREE", () => {
+    const r = priceOrder(ctx({ enabled: false }), {
       items: [{ productSlug: "knee-support-brace", variantId: "size-s", qty: 3 }],
     });
     assert.equal(r.ok, true);
     if (!r.ok) return;
-    assert.equal(raw.shipping.enabled, false);
     // 0, never null: switched off means free, and the cart says so.
     assert.equal(r.shippingCents, 0);
     assert.equal(r.shippingMethod.id, "free");
