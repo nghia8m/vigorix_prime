@@ -1,8 +1,8 @@
 ---
 import { getCollection } from "astro:content";
 import BaseLayout from "../layouts/BaseLayout.astro";
-import OwnProductCard from "../components/OwnProductCard.astro";
-import { getShopProducts } from "../lib/products";
+import OwnRangeSection from "../components/OwnRangeSection.astro";
+import { getShopProducts, groupShopProducts } from "../lib/products";
 import site from "../data/site.json";
 
 const articles = (await getCollection("articles", ({ data }) => !data.draft)).sort(
@@ -23,9 +23,17 @@ const latest = articles.slice(-3).map(card);
 
 const heroSlides = site.hero?.slides ?? [];
 
-// Products we sell ourselves. Shown in their own strip, deliberately never
-// merged into #best-picks or any editorial ranking.
-const ownProducts = (await getShopProducts()).slice(0, 3);
+// Products we sell ourselves — one strip per group declared in Site settings,
+// deliberately never merged into #best-picks or any editorial ranking. Each
+// strip shows a taste of its group and sends the rest to /shop.
+const shopGroups = groupShopProducts(await getShopProducts(), site.shop?.groups ?? []);
+const homeLimit = site.shop?.homeLimit ?? 3;
+
+// The strips straddle the articles rather than stacking together: the first
+// group declared in Site settings sits above #latest, everything after it goes
+// below. Declaring a fourth group therefore extends the lower run and never
+// silently pushes a different group off the top of the page.
+const [leadGroup, ...trailingGroups] = shopGroups;
 ---
 <BaseLayout
   title="Vigorix Prime — Men's Health, Supplement & Grooming Reviews"
@@ -69,6 +77,21 @@ const ownProducts = (await getShopProducts()).slice(0, 3);
     )}
   </section>
 
+  <!-- OUR OWN RANGE, first group — straight under the hero, so the products we
+       sell ourselves are the first thing past the banner. Groups come from Site
+       settings: add one there and a strip appears, with no code change. Each is
+       worded so it cannot be read as an editorial recommendation, and every
+       card carries "Our product". -->
+  {leadGroup && (
+    <OwnRangeSection
+      id={`shop-${leadGroup.id}`}
+      label={leadGroup.label}
+      note={leadGroup.note}
+      products={leadGroup.products}
+      limit={homeLimit}
+    />
+  )}
+
   <!-- CARD GRID: latest articles -->
   <section class="section" id="latest">
     <div class="container">
@@ -94,29 +117,17 @@ const ownProducts = (await getShopProducts()).slice(0, 3);
     </div>
   </section>
 
-  <!-- OUR OWN RANGE — products Vigorix Prime sells directly.
-       Sits between #latest and #deals, and is worded so it can never be read as
-       an editorial recommendation. Every card carries the "Our product" label. -->
-  {ownProducts.length > 0 && (
-    <section class="section section-own" id="our-range">
-      <div class="container">
-        <div class="section-head">
-          <h2>From Our Own Range</h2>
-          <a href="/shop" class="read-more read-more--strong">Visit the shop &rarr;</a>
-        </div>
-        <p class="own-range-note">
-          Health Care products we sell ourselves. They are not reviewed, scored or
-          ranked by our editorial team — see our
-          <a href="/affiliate-disclosure">disclosure</a>.
-        </p>
-        <div class="card-grid cols-3 owned-grid">
-          {ownProducts.map((product) => (
-            <OwnProductCard product={product} />
-          ))}
-        </div>
-      </div>
-    </section>
-  )}
+  <!-- OUR OWN RANGE, remaining groups — below the articles, so the two runs of
+       strips straddle the editorial block instead of stacking into one wall. -->
+  {trailingGroups.map((g) => (
+    <OwnRangeSection
+      id={`shop-${g.id}`}
+      label={g.label}
+      note={g.note}
+      products={g.products}
+      limit={homeLimit}
+    />
+  ))}
 
   <!-- DEALS BANNER (full-width promo strip, visually distinct from review cards) -->
   <section class="section" id="deals">

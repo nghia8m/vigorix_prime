@@ -1,20 +1,43 @@
 ---
 import BaseLayout from "../../layouts/BaseLayout.astro";
 import OwnProductCard from "../../components/OwnProductCard.astro";
-import { getShopProducts } from "../../lib/products";
+import { getShopProducts, groupShopProducts } from "../../lib/products";
+import site from "../../data/site.json";
 
 const products = await getShopProducts();
+
+// Every group, with every product in it — this page is the full catalogue, so
+// unlike the homepage strips nothing is trimmed here.
+const groups = groupShopProducts(products, site.shop?.groups ?? []);
+
+// The page named a single group until a second one existed. Both the heading
+// and the description now follow whatever groups are declared, so adding one in
+// the CMS can never leave this page advertising a range it no longer sells.
+const groupNames = groups.map((g) => g.label);
+const groupList =
+  groupNames.length > 1
+    ? `${groupNames.slice(0, -1).join(", ")} and ${groupNames[groupNames.length - 1]}`
+    : groupNames[0] ?? "";
+const heading = groupNames.length === 1 ? `Shop — ${groupNames[0]}` : "Shop";
 ---
 <BaseLayout
-  title="Shop — Vigorix Prime Health Care Range"
-  description="Browse the Health Care products Vigorix Prime sells directly: herbal warming patches, knee support braces and everyday comfort essentials."
+  title={groupNames.length === 1 ? `Shop — Vigorix Prime ${groupNames[0]} Range` : "Shop — The Vigorix Prime Range"}
+  description={
+    groupList
+      ? `Browse the products Vigorix Prime sells directly: ${groupList}. Sold by us, and kept separate from the brands we review.`
+      : "The products Vigorix Prime sells directly, kept separate from the brands we review."
+  }
   path="/shop"
 >
   <main>
   <section class="hero" style="padding:56px 0;">
     <div class="container">
-      <h1>Shop — Health Care</h1>
-      <p>Everyday comfort and support essentials we sell directly, in a category of their own — separate from the brands we review.</p>
+      <h1>{heading}</h1>
+      <p>
+        {groupList
+          ? `Everyday essentials we sell directly — ${groupList} — in a range of their own, separate from the brands we review.`
+          : "The products we sell directly, in a range of their own, separate from the brands we review."}
+      </p>
     </div>
   </section>
 
@@ -31,18 +54,34 @@ const products = await getShopProducts();
         the full picture.
       </p>
 
-      <div class="section-head"><h2>Our Health Care range</h2></div>
-
-      {products.length > 0 ? (
-        <div class="card-grid cols-3">
-          {products.map((product, i) => (
-            <OwnProductCard product={product} eager={i === 0} />
-          ))}
-        </div>
+      {groups.length > 0 ? (
+        groups.map((group, gi) => (
+          <div class="shop-group" id={`group-${group.id}`}>
+            <div class="section-head">
+              <h2>{group.label}</h2>
+              <span class="shop-group-count">
+                {group.products.length} {group.products.length === 1 ? "product" : "products"}
+              </span>
+            </div>
+            {/* The trailing "see our disclosure" is dropped here — the notice
+                above already carries that link, and repeating the words without
+                one leaves a reference pointing nowhere. */}
+            {group.note && (
+              <p class="own-range-note">
+                {group.note.replace(/\s*[—-]?\s*see our disclosure\.?\s*$/i, "").trim()}
+              </p>
+            )}
+            <div class="card-grid cols-3">
+              {group.products.map((product, i) => (
+                <OwnProductCard product={product} eager={gi === 0 && i === 0} />
+              ))}
+            </div>
+          </div>
+        ))
       ) : (
         <p class="shop-empty">
-          Our Health Care range is being prepared. In the meantime, browse our
-          independent reviews from the menu above.
+          Our range is being prepared. In the meantime, browse our independent
+          reviews from the menu above.
         </p>
       )}
 

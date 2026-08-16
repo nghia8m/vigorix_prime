@@ -1,0 +1,58 @@
+---
+// One homepage strip for one shop group. The homepage renders these from
+// site.json → shop.groups, so adding a group in the CMS adds a strip and
+// emptying one removes it — no code change either way.
+//
+// The wording below is the promise /affiliate-disclosure makes on this site's
+// behalf, so it lives here once rather than being copied per strip. A group can
+// override the sentence in Site settings, but the disclosure link is appended
+// either way and is not editable away.
+import OwnProductCard from "./OwnProductCard.astro";
+import type { Product } from "../lib/products";
+
+interface Props {
+  id: string;
+  label: string;
+  note?: string;
+  products: Product[];
+  /** Homepage shows a taste of the group; 0 or less means show everything. */
+  limit?: number;
+}
+
+const { id, label, note = "", products, limit = 0 } = Astro.props;
+
+const shown = limit > 0 ? products.slice(0, limit) : products;
+const hiddenCount = products.length - shown.length;
+const headingId = `${id}-heading`;
+
+// Any trailing "see our disclosure." is dropped so the linked version below is
+// never duplicated when an editor pastes the default sentence back in.
+const noteText = note.replace(/\s*[—-]?\s*see our disclosure\.?\s*$/i, "").trim();
+---
+{shown.length > 0 && (
+  <section class="section section-own" id={id} aria-labelledby={headingId}>
+    <div class="container">
+      <div class="section-head">
+        <h2 id={headingId}>{label}</h2>
+        <a href="/shop" class="read-more read-more--strong">
+          {hiddenCount > 0 ? `See all ${products.length}` : "Visit the shop"} &rarr;
+        </a>
+      </div>
+      <p class="own-range-note">
+        {noteText ? (
+          <>{noteText} — see our <a href="/affiliate-disclosure">disclosure</a>.</>
+        ) : (
+          <>
+            Products we sell ourselves. They are not reviewed, scored or ranked by
+            our editorial team — see our <a href="/affiliate-disclosure">disclosure</a>.
+          </>
+        )}
+      </p>
+      <div class="card-grid cols-3 owned-grid">
+        {shown.map((product) => (
+          <OwnProductCard product={product} />
+        ))}
+      </div>
+    </div>
+  </section>
+)}

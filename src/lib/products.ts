@@ -35,6 +35,63 @@ export async function getShopProducts(): Promise<Product[]> {
 
 export const productPath = (data: Pick<ProductData, "slug">) => `${SHOP_PATH}/${data.slug}`;
 
+export type ShopGroup = {
+  id: string;
+  label: string;
+  note: string;
+  products: Product[];
+  /** True when no group in site.json claims these products. */
+  undeclared: boolean;
+};
+
+/**
+ * Shop products split into the groups declared in site.json → shop.groups,
+ * in the order they are declared there.
+ *
+ * A product whose `category` matches no declared group is NOT dropped. Deleting
+ * a group in the CMS, or renaming its id, would otherwise silently remove
+ * products from the shop — stock that exists, is priced, and can still be
+ * reached by its own URL would simply stop being listed. Those products are
+ * collected into a trailing group instead, labelled from their own
+ * categoryLabel, and reported by the caller.
+ */
+export function groupShopProducts(
+  products: Product[],
+  declared: { id: string; label: string; note?: string }[]
+): ShopGroup[] {
+  const remaining = new Map(products.map((p) => [p.id, p]));
+
+  const groups: ShopGroup[] = declared.map((g) => {
+    const mine = products.filter((p) => p.data.category === g.id);
+    mine.forEach((p) => remaining.delete(p.id));
+    return { id: g.id, label: g.label, note: g.note ?? "", products: mine, undeclared: false };
+  });
+
+  // Leftovers, bucketed by the category they claim so two orphaned groups do
+  // not get merged into one.
+  const orphans = new Map<string, Product[]>();
+  for (const p of remaining.values()) {
+    const key = p.data.category || "uncategorised";
+    orphans.set(key, [...(orphans.get(key) ?? []), p]);
+  }
+  for (const [id, mine] of orphans) {
+    console.warn(
+      `[VP-SHOP-GROUP] ${mine.length} product(s) have category "${id}", which is not declared in ` +
+        `site.json → shop.groups. They are still listed, under their own heading. ` +
+        `Add the group in Site settings, or change the products' group.`
+    );
+    groups.push({
+      id,
+      label: mine[0].data.categoryLabel || id,
+      note: "",
+      products: mine,
+      undeclared: true,
+    });
+  }
+
+  return groups.filter((g) => g.products.length > 0);
+}
+
 /** Money formatting — one implementation, mirrored by the same call in client JS. */
 export const formatMoney = (amount: number, currency: string) =>
   new Intl.NumberFormat("en-US", {

@@ -98,15 +98,19 @@ img { max-width: 100%; display: block; }
   gap: 4px;
   align-items: center;
 }
+/* Every item carries a background, not just the current page and the Shop CTA.
+   With only some of them boxed, the identical 28px text gaps read as uneven:
+   a filled gap looks tighter than an empty one. */
 .main-nav a {
   color: var(--white);
   font-weight: 600;
   font-size: 0.92rem;
   padding: 8px 12px;
   border-radius: 6px;
+  background: rgba(255, 255, 255, 0.09);
   transition: background 0.15s, color 0.15s;
 }
-.main-nav a:hover { background: var(--navy-light); color: var(--white); }
+.main-nav a:hover { background: rgba(255, 255, 255, 0.2); color: var(--white); }
 .main-nav a.cta { background: var(--orange); }
 .main-nav a.cta:hover { background: var(--orange-dark); }
 
@@ -646,7 +650,15 @@ table.compare td:first-child { font-weight: 700; color: var(--navy); }
 }
 
 /* ---------- Header: Shop CTA + active state ---------- */
-.main-nav a.active { background: rgba(255, 255, 255, 0.16); }
+/* The current page reads as pressed in — darker than its neighbours, not
+   brighter. Going brighter is the obvious move and it fails: a lit-enough
+   panel to stand out against the other boxes drops white text to 3.12:1.
+   Darkening raises contrast instead, and the orange rule ties it to the
+   accent already used for the current section in the admin. */
+.main-nav a.active {
+  background: var(--navy-dark);
+  box-shadow: inset 0 -3px 0 var(--orange);
+}
 /* White on --orange measures only 2.61:1 (and 3.30:1 on --orange-dark), well
    under the 4.5:1 this 14.7px/600 label needs. Keeping the brand orange and
    flipping the label to near-black gives 5.96:1 / 4.72:1 instead. */
@@ -659,6 +671,10 @@ table.compare td:first-child { font-weight: 700; color: var(--navy); }
   background: var(--orange-dark);
   color: var(--gray-900);
 }
+/* Same 3px rule as every other current page, in the one colour that shows up
+   on orange — the orange one is invisible here, which left /shop looking like
+   no page was current at all. */
+.main-nav a.cta.active { box-shadow: inset 0 -3px 0 var(--gray-900); }
 .main-nav a:focus-visible {
   outline: 3px solid var(--white);
   outline-offset: 2px;
@@ -1384,4 +1400,18 @@ body.cart-open { overflow: hidden; }
   html { scroll-behavior: auto; }
   .card:hover { transform: none; }
   .btn:hover { transform: none; }
+}
+
+/* ---------- Shop groups ----------
+   /shop lists one block per group declared in Site settings. The rule between
+   blocks is what stops two grids reading as one long undifferentiated wall. */
+.shop-group + .shop-group {
+  margin-top: 44px;
+  padding-top: 36px;
+  border-top: 1px solid var(--gray-200);
+}
+.shop-group-count {
+  color: var(--gray-600);
+  font-size: 0.88rem;
+  white-space: nowrap;
 }

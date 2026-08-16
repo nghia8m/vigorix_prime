@@ -120,16 +120,42 @@ collections:
     extension: "mdx"
     format: "frontmatter"
     slug: "{{fields.slug}}"
-    summary: "{{name}} — {{price}} {{currency}}"
-    sortable_fields: ["order", "name", "price"]
+    # The list is the screen this collection is managed from, so it carries the
+    # photo, the one-line description and the group — enough to pick the right
+    # product without opening three of them to find out which is which.
+    thumbnail: "images.0.url"
+    summary: "{{fields.name}} — {{fields.subtitle}}"
+    sortable_fields: ["order", "name", "price", "category"]
+    view_groups:
+      - label: "Group"
+        field: category
+    view_filters:
+      - label: "Sample data (Draft ON — blocks the build)"
+        field: draft
+        pattern: true
+      - label: "Real data (Draft OFF — will publish)"
+        field: draft
+        pattern: false
     fields:
       - { name: "slug", label: "URL slug (page will be /shop/<slug>)", widget: "string", hint: "Changing this changes the page URL and breaks existing links. Set it once, then leave it alone.", pattern: ['^[a-z0-9]+(-[a-z0-9]+)*$', "Lowercase letters, numbers and hyphens only"] }
       - { name: "name", label: "Product Name (H1)", widget: "string" }
-      - { name: "subtitle", label: "One-line description (used on cards)", widget: "string", required: false, default: "" }
+      - { name: "subtitle", label: "One-line description", widget: "string", required: false, default: "", hint: "Shown on the homepage and /shop cards, and beside the name in this product list. Say what the thing is, not how good it is." }
       - { name: "metaTitle", label: "Meta Title (SEO, <=70 chars)", widget: "string", pattern: ['^.{1,70}$', "Keep under 70 characters"] }
       - { name: "metaDescription", label: "Meta Description (SEO, <=165 chars)", widget: "text", pattern: ['^.{1,165}$', "Keep under 165 characters"] }
-      - { name: "category", label: "Category (machine value)", widget: "hidden", default: "health-care" }
-      - { name: "categoryLabel", label: "Category Label", widget: "string", default: "Health Care" }
+      # Picked from the groups declared in Site settings -> Shop groups, never
+      # typed: a typo here would not error, it would quietly create a group of
+      # one and put a stray block on the homepage.
+      - name: "category"
+        label: "Group"
+        widget: "relation"
+        collection: "settings"
+        file: "site"
+        search_fields: ["shop.groups.*.label", "shop.groups.*.id"]
+        display_fields: ["shop.groups.*.label"]
+        value_field: "shop.groups.*.id"
+        default: "health-care"
+        hint: "Which block this product appears in, on the homepage and on /shop. Add or rename groups under Site settings -> Shop groups."
+      - { name: "categoryLabel", label: "Fallback group heading", widget: "string", default: "Health Care", hint: "Not normally shown — the heading comes from Site settings. This is only used if the group above is deleted, so the product still appears under a sensible name instead of a raw id." }
       - { name: "price", label: "Price (number only, e.g. 29)", widget: "number", value_type: "float" }
       - { name: "compareAt", label: "Was-price / struck-through (leave empty for none)", widget: "number", value_type: "float", required: false }
       - { name: "currency", label: "Currency code", widget: "string", default: "USD" }
@@ -171,7 +197,7 @@ collections:
         required: true
         min: 1
         allow_reorder: true
-        hint: "Drag to reorder — the first image is the main one and the social share image. Keep files under 400 KB."
+        hint: "Drag to reorder — the first image is the main one, the social share image, and the thumbnail in this product list. Keep files under 400 KB."
         summary: "{{fields.alt}}"
         fields:
           # Uploads for this field land in public/images/shop/ rather than the
@@ -298,6 +324,48 @@ collections:
               - { name: "title", label: "Title", widget: "string" }
               - { name: "text", label: "Description", widget: "text" }
               - { name: "link", label: "Link (URL or #anchor)", widget: "string" }
+          # -----------------------------------------------------------------
+          # SHOP GROUPS — the groups products are sorted into. Each group gets
+          # its own strip on the homepage and its own block on /shop, in the
+          # order listed here. "Group ID" is what each product stores, so
+          # changing an ID orphans every product still pointing at the old one:
+          # they keep selling and stay listed under their own heading, but they
+          # stop belonging to this group until they are re-assigned.
+          # -----------------------------------------------------------------
+          - name: "shop"
+            label: "Shop groups"
+            widget: "object"
+            fields:
+              - name: "homeLimit"
+                label: "Products per group on the homepage"
+                widget: "number"
+                value_type: "int"
+                min: 1
+                max: 12
+                default: 3
+                hint: "The homepage shows a taste of each group; the link beside the heading sends shoppers to /shop for the rest. /shop always shows everything."
+              - name: "groups"
+                label: "Groups"
+                widget: "list"
+                min: 1
+                hint: "One block per group, in this order. Drag to reorder."
+                summary: "{{fields.label}}  ({{fields.id}})"
+                fields:
+                  - name: "id"
+                    label: "Group ID (do not change once products use it)"
+                    widget: "string"
+                    pattern: ['^[a-z0-9]+(-[a-z0-9]+)*$', "Lowercase letters, numbers and hyphens only"]
+                    hint: "The value each product stores. Set it once and leave it alone — renaming it detaches the products already in this group."
+                  - name: "label"
+                    label: "Heading shown to shoppers"
+                    widget: "string"
+                    hint: "Safe to change any time. This is the heading above the block."
+                  - name: "note"
+                    label: "Sentence under the heading"
+                    widget: "text"
+                    required: false
+                    default: ""
+                    hint: "Must not claim the products are reviewed, scored or ranked — they are ours, so they are excluded from all editorial rankings. The disclosure link is added automatically."
           # -----------------------------------------------------------------
           # SHIPPING — read by the cart at /shop and on every product page.
           # All money here is in CENTS (whole numbers), never dollars, because

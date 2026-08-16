@@ -4,6 +4,14 @@
   "header": {
     "nav": [
       {
+        "label": "Home",
+        "href": "/"
+      },
+      {
+        "label": "Shop",
+        "href": "/shop"
+      },
+      {
         "label": "Best Picks",
         "href": "/#best-picks"
       },
@@ -26,10 +34,6 @@
       {
         "label": "About",
         "href": "/about"
-      },
-      {
-        "label": "Shop",
-        "href": "/shop"
       }
     ]
   },
@@ -136,6 +140,21 @@
     "title": "Deals & Price Drops",
     "text": "Our editors track prices across every supplement, performance product and grooming tool we recommend, and flag the best value inside each guide — so you buy when the timing is right. Start with our top-rated picks below.",
     "link": "/#best-picks"
+  },
+  "shop": {
+    "homeLimit": 3,
+    "groups": [
+      {
+        "id": "health-care",
+        "label": "Health Care",
+        "note": "Health Care products we sell ourselves. They are not reviewed, scored or ranked by our editorial team — see our disclosure."
+      },
+      {
+        "id": "skin-care",
+        "label": "Skin Care",
+        "note": "Cosmetic skin care we sell ourselves. They are not reviewed, scored or ranked by our editorial team — see our disclosure."
+      }
+    ]
   },
   "shipping": {
     "enabled": false,
