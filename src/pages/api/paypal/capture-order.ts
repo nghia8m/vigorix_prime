@@ -40,7 +40,12 @@ export const POST: APIRoute = async ({ request, locals }) => {
   const database = db(locals);
 
   if (!env.clientId || !env.secret) {
-    return json({ ok: false, error: "paypal_not_configured" }, 503);
+    // 4xx on purpose. Cloudflare replaces the BODY of a 5xx from a Worker with
+    // its own "error code: 5xx" plain-text page, so a shopper would see nothing
+    // useful and the checkout script would fail parsing JSON that never
+    // arrived. 424 says "this failed because something it depends on failed",
+    // which is the truth, and the body survives.
+    return json({ ok: false, error: "paypal_not_configured" }, 424);
   }
 
   let payload: any;
@@ -97,13 +102,13 @@ export const POST: APIRoute = async ({ request, locals }) => {
       orderId, source: "capture", type: "oauth_failed", paypalId: paypalOrderId,
       status: "failed", payload: token.body,
     });
-    return json({ ok: false, error: "paypal_auth_failed", message: "Could not reach PayPal." }, 502);
+    return json({ ok: false, error: "paypal_auth_failed", message: "Could not reach PayPal." }, 424);
   }
   const access = token.body.access_token;
 
   const remote = await getOrder(env, access, paypalOrderId);
   if (!remote.ok) {
-    return json({ ok: false, error: "paypal_order_unreadable", message: "Could not read that order." }, 502);
+    return json({ ok: false, error: "paypal_order_unreadable", message: "Could not read that order." }, 424);
   }
 
   // ---- 4. does PayPal's amount match ours? --------------------------------

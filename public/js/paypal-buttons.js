@@ -179,7 +179,22 @@
             claimedTotalCents: window.vpCart.subtotal() + (window.vpCart.shipping() || 0),
           }),
         })
-          .then(function (r) { return r.json().then(function (b) { return { status: r.status, body: b }; }); })
+          /* Never assume the body is JSON. An edge error page, a proxy, or a
+             gateway timeout all return plain text, and r.json() would throw
+             there — turning a readable failure into a silent one at the exact
+             moment money is involved. */
+          .then(function (r) {
+            return r.text().then(function (t) {
+              var b;
+              try { b = JSON.parse(t); }
+              catch (e) {
+                b = { ok: false, error: "unreadable_response",
+                      message: "The payment service returned an unexpected reply. " +
+                               "Nothing has been charged — please try again." };
+              }
+              return { status: r.status, body: b };
+            });
+          })
           .then(function (res) {
             log("[PP-CAPTURE]", res.status, res.body);
             if (res.status === 200 && res.body.ok) {
