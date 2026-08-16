@@ -23,8 +23,19 @@ pages_build_output_dir = "dist"
 # shop stops depending on a flag to sell anything.
 # ---------------------------------------------------------------------------
 [vars]
+# No products carry draft any more, so this changes nothing — kept only so the
+# flag is visible rather than forgotten. Delete it when convenient.
 ALLOW_DRAFT_PRODUCTS = "1"
-PAYPAL_MODE = "sandbox"
+
+# LIVE. Real cards, real money, real refunds.
+#
+# Two things follow automatically from this word:
+#   - api-m.paypal.com replaces api-m.sandbox.paypal.com, so the CLIENT_ID and
+#     SECRET secrets must be the LIVE app's. Sandbox keys against live endpoints
+#     fail authentication and every order is refused.
+#   - webhook signature verification becomes mandatory and the local bypass flag
+#     is ignored outright, whatever it is set to.
+PAYPAL_MODE = "live"
 
 # ---------------------------------------------------------------------------
 # Orders database.
