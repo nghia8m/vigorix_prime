@@ -2,6 +2,8 @@
 import BaseLayout from "../../layouts/BaseLayout.astro";
 import OwnProductCard from "../../components/OwnProductCard.astro";
 import { getShopProducts, groupShopProducts } from "../../lib/products";
+import ShopTestBanner from "../../components/ShopTestBanner.astro";
+import { shopIsTesting } from "../../lib/shop-mode";
 import site from "../../data/site.json";
 
 const products = await getShopProducts();
@@ -28,8 +30,10 @@ const heading = groupNames.length === 1 ? `Shop — ${groupNames[0]}` : "Shop";
       : "The products Vigorix Prime sells directly, kept separate from the brands we review."
   }
   path="/shop"
+  noindex={shopIsTesting()}
 >
   <main>
+  <ShopTestBanner />
   <section class="hero" style="padding:56px 0;">
     <div class="container">
       <h1>{heading}</h1>

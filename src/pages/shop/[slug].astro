@@ -3,6 +3,8 @@ import { getCollection, render } from "astro:content";
 import BaseLayout from "../../layouts/BaseLayout.astro";
 import ProductGallery from "../../components/ProductGallery.astro";
 import BuyBox from "../../components/BuyBox.astro";
+import ShopTestBanner from "../../components/ShopTestBanner.astro";
+import { shopIsTesting } from "../../lib/shop-mode";
 import {
   getShopProducts,
   productPath,
@@ -94,8 +96,10 @@ const heroImage = p.images[variant?.imageIndex ?? 0] ?? p.images[0];
   ogImage={heroImage.url}
   jsonLd={[breadcrumb, productSchema]}
   bodyClass="has-buybar"
+  noindex={shopIsTesting()}
 >
   <main class="shop-page">
+    <ShopTestBanner />
     <div class="container">
       <nav class="breadcrumb" aria-label="Breadcrumb">
         <a href="/">Home</a> &rsaquo; <a href="/shop">Shop</a> &rsaquo; <span>{p.name}</span>

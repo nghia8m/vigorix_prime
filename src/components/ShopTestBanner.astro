@@ -1,0 +1,16 @@
+---
+// Says out loud that the shop is not really open. Renders nothing at all once
+// real products and live payments are in place, so there is no cleanup step to
+// forget — see src/lib/shop-mode.ts for what decides it.
+import { testNotice } from "../lib/shop-mode";
+
+const notice = testNotice();
+---
+{notice && (
+  <div class="shop-testbar" role="status">
+    <div class="container">
+      <strong>Test mode</strong>
+      <span>{notice}</span>
+    </div>
+  </div>
+)}
