@@ -374,52 +374,49 @@ collections:
                     default: ""
                     hint: "Must not claim the products are reviewed, scored or ranked — they are ours, so they are excluded from all editorial rankings. The disclosure link is added automatically."
           # -----------------------------------------------------------------
-          # SHIPPING — read by the cart at /shop and on every product page.
-          # All money here is in CENTS (whole numbers), never dollars, because
-          # the cart does every calculation in integer cents and only formats
-          # for display. 495 means $4.95.
+          # ORDERING RULES — enforced by the server, not only by the cart, so a
+          # request sent straight to the API cannot skip them.
+          # -----------------------------------------------------------------
+          - name: "ordering"
+            label: "Ordering rules"
+            widget: "object"
+            fields:
+              - name: "minQtyPerProduct"
+                label: "Minimum quantity per product (pack size)"
+                widget: "number"
+                value_type: "int"
+                min: 1
+                max: 99
+                default: 4
+                hint: "Applies to EACH product separately. With 4, a shopper must take 4 of one product; one each of four different products does NOT count. Set to 1 to sell singles and hide every mention of packs from shoppers."
+          # -----------------------------------------------------------------
+          # SHIPPING — one charge per pack, and that is the whole model.
+          #
+          # There is no rate list, no free-shipping threshold and no "we have
+          # not decided" state: the switch is either ON (charge per pack) or
+          # OFF (free, and the cart says Free). Money is in CENTS.
+          #
+          # The pack size comes from Ordering rules above — a pack is what gets
+          # boxed, so it is what gets posted. Change the pack there and postage
+          # follows automatically.
           # -----------------------------------------------------------------
           - name: "shipping"
             label: "Shipping"
             widget: "object"
             fields:
               - name: "enabled"
-                label: "Shipping rates are confirmed"
+                label: "Charge for shipping"
                 widget: "boolean"
                 default: false
-                hint: "Leave OFF until the shipping policy is agreed — the cart then shows the note below instead of a figure. Turning it ON makes the cart quote real money to shoppers."
-              - name: "displayNote"
-                label: "Note shown while shipping is OFF"
-                widget: "string"
-                default: "Shipping calculated at checkout"
-                hint: "Shown in place of an amount. Once shipping is ON this note is not used, so it should no longer say 'calculated at checkout'."
-              - { name: "currency", label: "Currency code", widget: "string", default: "USD" }
-              - name: "freeOverCents"
-                label: "Free shipping above (CENTS)"
+                hint: "OFF = free shipping, and the cart shows the word Free. ON = each pack is charged the amount below. There is no third setting — turning this off IS the free-shipping campaign."
+              - name: "perBlockCents"
+                label: "Price per pack (CENTS)"
                 widget: "number"
                 value_type: "int"
                 min: 0
-                default: 5000
-                hint: "In cents: 5000 = $50.00. The threshold is EXCLUSIVE — an order of exactly $50.00 still pays postage, $50.01 ships free."
-              - name: "rates"
-                label: "Shipping rates"
-                label_singular: "Rate"
-                widget: "list"
-                allow_reorder: true
-                hint: "The cart uses the FIRST rate in this list. Drag to change which one that is. Every id must be unique."
-                summary: "{{fields.label}} — {{fields.flatCents}}c"
-                fields:
-                  - { name: "id", label: "Internal id (unique, e.g. standard)", widget: "string" }
-                  - { name: "label", label: "Name shown to the shopper", widget: "string" }
-                  - name: "flatCents"
-                    label: "Flat rate (CENTS)"
-                    widget: "number"
-                    value_type: "int"
-                    min: 0
-                    default: 495
-                    hint: "In cents: 495 = $4.95. Whole numbers only — do not type 4.95."
-                  - { name: "etaDays", label: "Delivery estimate (e.g. 5–10)", widget: "string", required: false, default: "" }
-
+                default: 2500
+                hint: "In cents: 2500 = $25.00. Whole numbers only — do not type 25.00. Charged once per pack, so with packs of 3 an order of 6 items pays this twice."
+              - { name: "currency", label: "Currency code", widget: "string", default: "USD" }
           - name: "code"
             label: "Site-wide Code"
             widget: "object"

@@ -43,8 +43,24 @@
 }
 .co-left { min-width: 0; }
 
-/* ---------- progress ---------- */
-.co-steps ol { list-style: none; display: flex; gap: 8px; margin-bottom: 20px; flex-wrap: wrap; }
+/* ---------- progress ----------
+   Pinned under the header so the shopper can always see which of the three
+   steps they are on, and jump between them, without scrolling back up.
+
+   It sits BELOW the header in the stack (z-index 90 against its 100) and
+   directly beneath it in the viewport (top: var(--header-h)), so the two never
+   overlap. The background is opaque on purpose: a transparent sticky bar shows
+   the cards sliding underneath it. */
+.co-steps {
+  position: sticky;
+  top: var(--header-h);
+  z-index: 90;
+  background: var(--gray-50);
+  padding: 14px 0 12px;
+  margin-bottom: 20px;
+  border-bottom: 1px solid var(--gray-200);
+}
+.co-steps ol { list-style: none; display: flex; gap: 8px; margin-bottom: 0; flex-wrap: wrap; }
 .co-step {
   display: inline-flex;
   align-items: center;
@@ -83,6 +99,10 @@
   border-radius: var(--radius);
   padding: 22px;
   margin-bottom: 18px;
+  /* Clicking a step scrolls the section to the top of the viewport, which is
+     underneath two sticky bars. Without this the heading lands behind them and
+     the shopper sees the middle of the section they just asked for. */
+  scroll-margin-top: calc(var(--header-h) + 64px);
   scroll-margin-top: calc(var(--header-h) + 16px);
 }
 .co-block:focus { outline: none; }
@@ -325,6 +345,20 @@
 
 @media (max-width: 560px) {
   .co-row { grid-template-columns: 1fr; }
+
+  /* The three steps wrap onto three lines at this width, and three lines of
+     pinned bar is most of a phone screen. One scrollable row instead: the
+     current step is always the one in view because the browser keeps a
+     focused/current item visible. */
+  .co-steps { padding: 10px 0 8px; }
+  .co-steps ol {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+  }
+  .co-steps ol::-webkit-scrollbar { display: none; }
+  .co-step { white-space: nowrap; }
 }
 
 /* ---------- payment status + confirmation ---------- */
@@ -347,3 +381,13 @@
 .co-paid h1 { color: var(--navy); font-size: 1.6rem; margin-bottom: 10px; }
 .co-paid-line { font-size: 1rem; color: var(--gray-900); margin-bottom: 10px; }
 .co-paid p { color: var(--gray-700); margin-bottom: 14px; }
+
+/* "All transactions are secure." — sits opposite the Payment heading. */
+.co-secure-note {
+  color: var(--gray-600);
+  font-size: 0.85rem;
+  white-space: nowrap;
+}
+@media (max-width: 560px) {
+  .co-secure-note { white-space: normal; }
+}

@@ -5,7 +5,7 @@
  */
 import { getShopProducts } from "./products";
 import site from "../data/site.json";
-import { CART_CONFIG, readShipping } from "./cart-config";
+import { CART_CONFIG, readShipping, readOrdering } from "./cart-config";
 import type { Catalogue, PricingContext, ShippingSettings } from "./pricing";
 
 const cents = (n: number) => Math.round(n * 100);
@@ -54,8 +54,11 @@ export function shippingSettings(): ShippingSettings {
   const s = readShipping((site as Record<string, unknown>).shipping);
   return {
     enabled: s.enabled,
-    freeOverCents: s.freeOverCents,
-    rates: s.rates.map((r) => ({ id: r.id, label: r.label, flatCents: r.flatCents })),
+    perBlockCents: s.perBlockCents,
+    // One charge per pack: the pack is what gets boxed, so it is what gets
+    // posted. Reading it from the ordering rules keeps the two from drifting
+    // apart — "$25 per 3" cannot survive somebody changing the pack to 4.
+    blockSize: readOrdering((site as Record<string, unknown>).ordering).minQtyPerProduct,
   };
 }
 
@@ -95,6 +98,7 @@ export async function loadPricingContext(mode?: "sandbox" | "live"): Promise<Pri
     limits: {
       minOrderQty: CART_CONFIG.MIN_ORDER_QTY,
       maxQtyPerLine: CART_CONFIG.MAX_QTY_PER_LINE,
+      minQtyPerLine: readOrdering((site as Record<string, unknown>).ordering).minQtyPerProduct,
     },
   };
 }

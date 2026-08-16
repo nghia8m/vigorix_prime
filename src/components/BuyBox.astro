@@ -21,6 +21,8 @@ import {
   externalHost,
   type ProductData,
 } from "../lib/products";
+import site from "../data/site.json";
+import { readOrdering, CART_CONFIG } from "../lib/cart-config";
 
 interface Props {
   data: ProductData;
@@ -35,6 +37,15 @@ const sku = skuOf(data, variant);
 const url = buildPurchaseUrl(data, variant, 1);
 const host = externalHost(url);
 const showQuantity = Boolean(data.quantityParam);
+
+// Pack size. Told BEFORE the button rather than after it: a shopper who adds
+// one, opens the cart and only then reads that four is the minimum has been
+// wasted, and the cart is where people abandon.
+const minQty = readOrdering((site as Record<string, unknown>).ordering).minQtyPerProduct;
+const packPrice = price * minQty;
+// The ceiling has to land ON a pack boundary. 99 with packs of 4 would let the
+// stepper stop at 96 and then refuse to move, which reads as a broken button.
+const maxQty = Math.floor(CART_CONFIG.MAX_QTY_PER_LINE / minQty) * minQty;
 const purchasable = stock !== "out" && Boolean(url);
 
 // Is a destination configured at all? If not, no variant can ever be buyable,
@@ -130,25 +141,63 @@ const TRUST_ICONS: Record<string, string> = {
     </form>
   )}
 
-  {showQuantity && (
-    <div class="qty-row">
-      <label class="qty-label" for="qty">Quantity</label>
-      <input class="qty-input" id="qty" name="qty" type="number" inputmode="numeric" min="1" max="99" step="1" value="1" data-qty />
+  {/* The quantity control used to be hidden unless `quantityParam` was set —
+      a phase-1 rule for handing off to somebody else's checkout, which could
+      not always receive a quantity. Our own cart and checkout always can, so
+      the control is unconditional now and the flag only governs the outbound
+      link below. */}
+  <div class="qty-row" data-moq={minQty} data-step={minQty}>
+    <span class="qty-label" id="qty-label">Quantity</span>
+    <div class="qty-stepper">
+      <button type="button" class="qty-btn" data-qty-down aria-label={`Fewer — removes ${minQty}`}>&minus;</button>
+      <input
+        class="qty-input"
+        id="qty"
+        name="qty"
+        type="number"
+        inputmode="numeric"
+        aria-labelledby="qty-label"
+        min={minQty}
+        max={maxQty}
+        step={minQty}
+        value={minQty}
+        data-qty
+      />
+      <button type="button" class="qty-btn" data-qty-up aria-label={`More — adds ${minQty}`}>+</button>
     </div>
-  )}
+  </div>
 
-  {showQuantity && (
-    <p class="buybox-total">
-      <span>Total</span>
-      <span data-total>{formatMoney(price, data.currency)}</span>
+  {minQty > 1 && (
+    <p class="buybox-moq">
+      <strong>Sold in packs of {minQty}.</strong> The quantity moves in {minQty}s —
+      {minQty}, {minQty * 2}, {minQty * 3} and so on. Singles are not sold, and
+      products cannot be mixed to make up a pack: each one is ordered in its own
+      pack of {minQty}.
     </p>
   )}
 
-  <!-- Cart is the primary action. The external buy link stays as a secondary
-       route for products whose checkout still lives on another site. -->
+  <p class="buybox-total">
+    <span>Total</span>
+    <span data-total>{formatMoney(packPrice, data.currency)}</span>
+  </p>
+
+  {/* Buy it now goes straight to checkout with THIS product only; the basket
+      is left exactly as the shopper built it. Add to cart is the calmer
+      second option and stays on the page. */}
   <button
     type="button"
-    class="buy-btn add-to-cart"
+    class="buy-btn buy-now"
+    data-buy-now
+    data-product-slug={data.slug}
+    data-variant-id={variant?.id ?? ""}
+    disabled={stock === "out"}
+  >
+    <span data-buynow-label>{stock === "out" ? "Out of stock" : "BUY IT NOW"}</span>
+  </button>
+
+  <button
+    type="button"
+    class="buy-btn buy-btn-outline add-to-cart"
     data-add-to-cart
     data-product-slug={data.slug}
     data-variant-id={variant?.id ?? ""}
@@ -174,7 +223,6 @@ const TRUST_ICONS: Record<string, string> = {
     Your order, payment and delivery are handled there.
   </p>
 
-  <a class="buy-btn-secondary" href="/contact">Ask us about this product</a>
 
   {data.shipTo.length > 0 && (
     <p class="buybox-ship">Ships to: {data.shipTo.join(", ")}</p>
@@ -194,12 +242,10 @@ const TRUST_ICONS: Record<string, string> = {
     </ul>
   )}
 
-  <p class="buybox-legal">
-    Individual results vary. This is a general wellness product, not a medical
-    device or medicine, and nothing here is medical advice. If you have a specific
-    health concern, an existing condition, or you are unsure whether this product
-    suits you, speak to a qualified healthcare professional first.
-  </p>
+  {/* The medical notice used to sit here, between the trust boxes and the end
+      of the buy column. It now runs at the foot of the page instead — kept in
+      full, just out of the path between reading the price and pressing buy.
+      See the bottom of src/pages/shop/[slug].astro. */}
 </div>
 
 <!-- Mobile only: price + buy, pinned to the bottom of the viewport. -->
@@ -210,15 +256,17 @@ const TRUST_ICONS: Record<string, string> = {
       {data.compareAt ? formatMoney(data.compareAt, data.currency) : ""}
     </s>
   </div>
+  {/* One action only down here — the bar is 60px of screen, and splitting it
+      makes both targets too small to hit. Buy it now is the one that finishes. */}
   <button
     type="button"
-    class="buy-btn add-to-cart"
-    data-add-to-cart
+    class="buy-btn buy-now"
+    data-buy-now
     data-product-slug={data.slug}
     data-variant-id={variant?.id ?? ""}
     disabled={stock === "out"}
   >
-    <span data-add-label>{stock === "out" ? "Out of stock" : "Add to cart"}</span>
+    <span data-buynow-label>{stock === "out" ? "Out of stock" : "BUY IT NOW"}</span>
   </button>
 </div>
 
@@ -235,6 +283,26 @@ const TRUST_ICONS: Record<string, string> = {
     };
     var inputs = all("[data-variant-input]");
     var qtyInput = document.querySelector("[data-qty]");
+
+    /* Pack size, read from the rendered markup so this script and the server
+       cannot disagree. The cart clamps to it as well — this is the friendly
+       copy, not the enforcement. */
+    var moqEl = document.querySelector("[data-moq]");
+    var MOQ = moqEl ? parseInt(moqEl.getAttribute("data-moq"), 10) || 1 : 1;
+    var MAXQ = qtyInput ? parseInt(qtyInput.getAttribute("max"), 10) || 99 : 99;
+
+    /* Rounds to a pack boundary. Typing 7 into the box with packs of 4 has to
+       land on 8, not stay at 7 and be refused later by the server. */
+    function snapQty(v) {
+      var raw = parseInt(v, 10);
+      if (!isFinite(raw) || raw < MOQ) return MOQ;
+      var snapped = Math.ceil(raw / MOQ) * MOQ;
+      return Math.min(MAXQ, snapped);
+    }
+
+    function currentQty() {
+      return qtyInput ? snapQty(qtyInput.value) : MOQ;
+    }
 
     var money = function (n) {
       return new Intl.NumberFormat("en-US", {
@@ -280,7 +348,7 @@ const TRUST_ICONS: Record<string, string> = {
 
     function render(pushUrl) {
       var v = selected();
-      var qty = qtyInput ? Math.max(1, Math.min(99, parseInt(qtyInput.value, 10) || 1)) : 1;
+      var qty = currentQty();
       var price = D.basePrice + (v ? v.priceDelta : 0);
       var stock = v ? v.stock : D.baseStock;
       var sku = (v && v.sku) || D.baseSku;
@@ -359,15 +427,64 @@ const TRUST_ICONS: Record<string, string> = {
         var result = window.vpCart.add(
           btn.getAttribute("data-product-slug"),
           btn.getAttribute("data-variant-id") || "",
-          1
+          currentQty()
         );
         if (feedback) {
           feedback.hidden = false;
-          feedback.textContent = result.ok ? "Added to your cart." : result.message;
+          feedback.textContent = result.ok
+            ? currentQty() + " added to your cart."
+            : result.message;
           feedback.className = "cart-feedback" + (result.ok ? " is-ok" : " is-error");
         }
         // Opening the drawer is this button's decision, not the store's.
         if (result.ok && window.vpCartUI) window.vpCartUI.open();
+      });
+    });
+
+    // Stepper. The buttons move by a whole pack, and the minus button goes
+    // disabled at the floor so it reads as "this is the smallest order", not
+    // as a button that stopped working.
+    function setQty(v) {
+      if (!qtyInput) return;
+      qtyInput.value = String(snapQty(v));
+      syncStepper();
+      render(false);
+    }
+
+    function syncStepper() {
+      var q = currentQty();
+      var down = document.querySelector("[data-qty-down]");
+      var up = document.querySelector("[data-qty-up]");
+      if (down) down.disabled = q <= MOQ;
+      if (up) up.disabled = q >= MAXQ;
+    }
+
+    var downBtn = document.querySelector("[data-qty-down]");
+    var upBtn = document.querySelector("[data-qty-up]");
+    if (downBtn) downBtn.addEventListener("click", function () { setQty(currentQty() - MOQ); });
+    if (upBtn) upBtn.addEventListener("click", function () { setQty(currentQty() + MOQ); });
+    syncStepper();
+
+    /* Buy it now. Checks out THIS product alone; the basket is not read, not
+       added to and not emptied. The server sees an ordinary priced order — the
+       item list simply came from here instead of from localStorage. */
+    all("[data-buy-now]").forEach(function (btn) {
+      btn.addEventListener("click", function () {
+        var feedback = document.querySelector("[data-add-feedback]");
+        var result = window.vpCart.startDirect(
+          btn.getAttribute("data-product-slug"),
+          btn.getAttribute("data-variant-id") || "",
+          currentQty()
+        );
+        if (!result.ok) {
+          if (feedback) {
+            feedback.hidden = false;
+            feedback.textContent = result.message;
+            feedback.className = "cart-feedback is-error";
+          }
+          return;
+        }
+        window.location.href = "/checkout?buynow=1";
       });
     });
 
@@ -377,7 +494,8 @@ const TRUST_ICONS: Record<string, string> = {
     if (qtyInput) {
       qtyInput.addEventListener("input", function () { render(false); });
       qtyInput.addEventListener("change", function () {
-        qtyInput.value = String(Math.max(1, Math.min(99, parseInt(qtyInput.value, 10) || 1)));
+        qtyInput.value = String(snapQty(qtyInput.value));
+        syncStepper();
         render(false);
       });
     }

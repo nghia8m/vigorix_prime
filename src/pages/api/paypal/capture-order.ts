@@ -17,7 +17,7 @@ export const prerender = false;
    Capture a PayPal order.
    ---------------------------------------------------------------------------
    THE CLIENT SENDS: paypalOrderId, orderId, items (slug + variant + qty),
-   shippingRateId, customer, address. That is all.
+   customer, address. That is all. Postage is computed from the quantities.
 
    THE SERVER DECIDES: every amount, by re-pricing those items from the content
    collection. `claimedTotalCents`, if present, is only compared — a mismatch
@@ -60,7 +60,6 @@ export const POST: APIRoute = async ({ request, locals }) => {
   const ctx = await loadPricingContext(env.mode);
   const priced = priceOrder(ctx, {
     items: Array.isArray(payload?.items) ? payload.items : [],
-    shippingRateId: payload?.shippingRateId ?? null,
   });
 
   if (!priced.ok) {

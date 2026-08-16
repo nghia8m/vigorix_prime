@@ -1,6 +1,6 @@
 import type { APIRoute } from "astro";
 import { getShopProducts } from "../../lib/products";
-import { CART_CONFIG, readShipping } from "../../lib/cart-config";
+import { CART_CONFIG, readShipping, readOrdering } from "../../lib/cart-config";
 import site from "../../data/site.json";
 
 /**
@@ -22,10 +22,22 @@ export const GET: APIRoute = async () => {
   const cents = (n: number) => Math.round(n * 100);
 
   const payload = {
-    config: CART_CONFIG,
+    // The per-product minimum is merged in here rather than shipped separately,
+    // so cart.js reads one config object and cannot end up applying the code
+    // default while the server applies the admin's figure.
+    config: {
+      ...CART_CONFIG,
+      MIN_QTY_PER_PRODUCT: readOrdering((site as Record<string, unknown>).ordering)
+        .minQtyPerProduct,
+    },
     // Shipping policy comes from Admin → Site Settings, not from code, so the
-    // owner can turn it on and set the rate without a developer.
-    shipping: readShipping((site as Record<string, unknown>).shipping),
+    // owner can turn it on and set the rate without a developer. blockSize is
+    // merged in from the ordering rules so the browser charges per pack using
+    // the same pack size the server does.
+    shipping: {
+      ...readShipping((site as Record<string, unknown>).shipping),
+      blockSize: readOrdering((site as Record<string, unknown>).ordering).minQtyPerProduct,
+    },
     products: Object.fromEntries(
       products.map((p) => {
         const d = p.data;

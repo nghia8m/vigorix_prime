@@ -45,11 +45,15 @@ describe("real catalogue", { skip: built ? false : "no build found — run `npm 
     catalogue,
     shipping: {
       enabled: raw.shipping.enabled,
-      freeOverCents: raw.shipping.freeOverCents,
-      rates: (raw.shipping.rates ?? []).map((r: any) => ({ id: r.id, label: r.label, flatCents: r.flatCents })),
+      perBlockCents: raw.shipping.perBlockCents,
+      blockSize: raw.shipping.blockSize,
       ...shippingOverride,
     },
-    limits: { minOrderQty: raw.config.MIN_ORDER_QTY, maxQtyPerLine: raw.config.MAX_QTY_PER_LINE },
+    limits: {
+      minOrderQty: raw.config.MIN_ORDER_QTY,
+      maxQtyPerLine: raw.config.MAX_QTY_PER_LINE,
+      minQtyPerLine: raw.config.MIN_QTY_PER_PRODUCT ?? 1,
+    },
   });
 
   test("the sample products are all priced in whole cents", () => {
@@ -64,16 +68,17 @@ describe("real catalogue", { skip: built ? false : "no build found — run `npm 
   test("a real mixed order totals correctly", () => {
     const r = priceOrder(ctx(), {
       items: [
-        { productSlug: "knee-support-brace", variantId: "size-l", qty: 2 },
-        { productSlug: "herbal-warming-patch", variantId: "pack-8", qty: 1 },
+        { productSlug: "knee-support-brace", variantId: "size-l", qty: 3 },
+        { productSlug: "herbal-warming-patch", variantId: "pack-8", qty: 3 },
       ],
     });
-    assert.equal(r.ok, true);
+    assert.equal(r.ok, true, JSON.stringify(r));
     if (!r.ok) return;
-    // 2900 + 400 = 3300 each, plus a 1900 patch pack
+    // 2900 + 400 = 3300 each, plus 1900 patch packs. Quantities are whole packs
+    // because the real settings enforce them.
     assert.equal(r.lines[0].unitPriceCents, 3300);
-    assert.equal(r.subtotalCents, 3300 * 2 + 1900);
-    assert.equal(r.totalQty, 3);
+    assert.equal(r.subtotalCents, 3300 * 3 + 1900 * 3);
+    assert.equal(r.totalQty, 6);
   });
 
   test("the out-of-stock variant in the real data is refused", () => {
@@ -85,34 +90,33 @@ describe("real catalogue", { skip: built ? false : "no build found — run `npm 
     assert.equal(r.code, "out_of_stock");
   });
 
-  test("shipping is currently switched off, so real orders return null", () => {
+  test("shipping is currently switched off, so real orders ship FREE", () => {
     const r = priceOrder(ctx(), {
-      items: [{ productSlug: "knee-support-brace", variantId: "size-s", qty: 1 }],
+      items: [{ productSlug: "knee-support-brace", variantId: "size-s", qty: 3 }],
     });
     assert.equal(r.ok, true);
     if (!r.ok) return;
     assert.equal(raw.shipping.enabled, false);
-    assert.equal(r.shippingCents, null);
+    // 0, never null: switched off means free, and the cart says so.
+    assert.equal(r.shippingCents, 0);
+    assert.equal(r.shippingMethod.id, "free");
   });
 
-  test("with the real rate switched on, the threshold still excludes $50.00", () => {
+  test("switched on, the real settings charge once per pack", () => {
     const on = ctx({ enabled: true });
-    // 2 braces at $29.00 = $58.00 -> above $50.00, ships free
-    const above = priceOrder(on, {
-      items: [{ productSlug: "knee-support-brace", variantId: "size-s", qty: 2 }],
+    const pack = raw.shipping.blockSize;
+    const per = raw.shipping.perBlockCents;
+
+    const one = priceOrder(on, {
+      items: [{ productSlug: "knee-support-brace", variantId: "size-s", qty: pack }],
     });
-    assert.equal(above.ok, true);
-    if (above.ok) {
-      assert.equal(above.subtotalCents, 5800);
-      assert.equal(above.shippingCents, 0);
-    }
-    // 1 brace at $29.00 -> below, pays the configured flat rate
-    const below = priceOrder(on, {
-      items: [{ productSlug: "knee-support-brace", variantId: "size-s", qty: 1 }],
+    assert.equal(one.ok, true);
+    if (one.ok) assert.equal(one.shippingCents, per);
+
+    const two = priceOrder(on, {
+      items: [{ productSlug: "knee-support-brace", variantId: "size-s", qty: pack * 2 }],
     });
-    assert.equal(below.ok, true);
-    if (below.ok) {
-      assert.equal(below.shippingCents, raw.shipping.rates[0].flatCents);
-    }
+    assert.equal(two.ok, true);
+    if (two.ok) assert.equal(two.shippingCents, per * 2);
   });
 });

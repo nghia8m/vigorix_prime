@@ -173,7 +173,6 @@
             paypalOrderId: data.orderID,
             orderId: window.__vpPendingInvoice,
             items: requestItems(),
-            shippingRateId: window.vpCheckoutForm ? window.vpCheckoutForm.shippingRateId() : null,
             customer: window.vpCheckoutForm ? window.vpCheckoutForm.customer() : null,
             shippingAddress: window.vpCheckoutForm ? window.vpCheckoutForm.address() : null,
             // Sent only so the server can COMPARE and refuse on mismatch.

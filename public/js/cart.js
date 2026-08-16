@@ -28,6 +28,7 @@
      It exists so the cart still behaves sanely if the fetch fails. */
   var config = {
     MIN_ORDER_QTY: 1,
+    MIN_QTY_PER_PRODUCT: 1,
     MAX_QTY_PER_LINE: 99,
     STORAGE_KEY: "vp.cart.v1",
   };
@@ -37,10 +38,9 @@
      number at all, rather than inventing a rate nobody has agreed to. */
   var shippingCfg = {
     enabled: false,
-    displayNote: "Shipping calculated at checkout",
     currency: "USD",
-    freeOverCents: 0,
-    rates: [],
+    perBlockCents: 0,
+    blockSize: 1,
   };
 
   var catalog = null; // { slug: product }
@@ -112,8 +112,16 @@
     return Math.floor(n);
   }
 
+  /* The floor is the per-product minimum, not 1: stock is bought by the box,
+     so a line below the minimum is not a smaller order, it is an order the shop
+     cannot fulfil. Typing 1 into the box therefore lands on the minimum. */
+  function minPerProduct() {
+    var m = parseInt(config.MIN_QTY_PER_PRODUCT, 10);
+    return isFinite(m) && m >= 1 ? m : 1;
+  }
+
   function clampQty(n) {
-    return Math.max(1, Math.min(config.MAX_QTY_PER_LINE, n));
+    return Math.max(minPerProduct(), Math.min(config.MAX_QTY_PER_LINE, n));
   }
 
   // ---------------------------------------------------------------- catalog --
@@ -178,12 +186,20 @@
     };
   }
 
-  function indexOfKey(key) {
-    for (var i = 0; i < items.length; i++) {
-      if (items[i].productSlug + KEY_SEP + items[i].variantId === key) return i;
+  /* Indexes the order ON SCREEN. During a direct order that is the single
+     bought item, not the basket — otherwise editing the quantity on the
+     checkout page would quietly rewrite the basket the shopper still has
+     saved, and removing a line would delete something they never touched. */
+  function indexIn(list, key) {
+    for (var i = 0; i < list.length; i++) {
+      if (list[i].productSlug + KEY_SEP + list[i].variantId === key) return i;
     }
     return -1;
   }
+
+  function indexOfKey(key) { return indexIn(activeItems(), key); }
+  /** Always the basket, never the direct order: "Add to cart" means the cart. */
+  function indexInCart(key) { return indexIn(items, key); }
 
   // ----------------------------------------------------------------- events --
 
@@ -201,34 +217,37 @@
     return sum;
   }
 
+  /** Items covered by one postage charge — the pack size. Never below 1. */
+  function blockSize() {
+    var b = parseInt(shippingCfg.blockSize, 10);
+    return isFinite(b) && b >= 1 ? b : 1;
+  }
+
+  /** How many postage charges this order attracts. Rounds UP. */
+  function shippingBlocks() {
+    var q = totalQty();
+    return q <= 0 ? 0 : Math.ceil(q / blockSize());
+  }
+
   /**
-   * Shipping in cents, or NULL when it cannot be worked out yet (policy is off).
-   * Null is not zero: "we don't know" and "it's free" must not look the same.
-   *
-   * Free shipping applies STRICTLY ABOVE freeOverCents. With 5000, a $50.00
-   * order still pays postage; $50.01 does not.
+   * Shipping in cents. ALWAYS a number — 0 means free, and switching the policy
+   * off is what makes it free. There is no "we cannot work it out" state left,
+   * so nothing has to distinguish null from zero any more.
    */
   function shipping() {
-    var sub = subtotal();
-    if (sub <= 0) return 0;
-    if (!shippingCfg.enabled) return null;
-    if (sub > shippingCfg.freeOverCents) return 0;
-    var rate = shippingCfg.rates && shippingCfg.rates[0];
-    return rate ? rate.flatCents : 0;
-  }
-
-  /** The line of text shown when shipping cannot be calculated. */
-  function shippingNote() {
-    return shippingCfg.displayNote;
-  }
-
-  /** Cents still needed to cross the free-shipping line, or 0 when not applicable. */
-  function toFreeShipping() {
+    if (subtotal() <= 0) return 0;
     if (!shippingCfg.enabled) return 0;
-    var sub = subtotal();
-    if (sub <= 0 || sub > shippingCfg.freeOverCents) return 0;
-    // +1 cent because the threshold is exclusive.
-    return shippingCfg.freeOverCents - sub + 1;
+    var per = parseInt(shippingCfg.perBlockCents, 10);
+    return shippingBlocks() * (isFinite(per) && per > 0 ? per : 0);
+  }
+
+  /** "$25.00 per 3 items", or "" when postage is free. Shown beside the amount
+      so a total that jumps by a whole charge does not look like a fault. */
+  function shippingNote() {
+    if (!shippingCfg.enabled) return "";
+    var per = parseInt(shippingCfg.perBlockCents, 10);
+    if (!isFinite(per) || per <= 0) return "";
+    return formatMoney(per) + " per " + blockSize() + " items";
   }
 
   /** Subtotal plus shipping. Unknown shipping counts as 0 and the UI says so. */
@@ -250,13 +269,94 @@
     }
   }
 
+  // ------------------------------------------------------- direct ("buy now") --
+  /*
+     "Buy it now" checks out ONE product without disturbing the basket. The
+     basket keeps living in localStorage untouched; the direct order lives in
+     sessionStorage, so it dies with the tab and cannot be mistaken later for
+     something the shopper still meant to buy.
+
+     While a direct order is active, lines()/subtotal()/totalQty() describe it
+     instead of the basket. That is safe because /checkout is the only page
+     that ever activates it, and that page has no cart drawer — it loads
+     cart.js purely to do the arithmetic. Every other page leaves it null.
+
+     The SERVER is unaffected: it prices whatever items the request carries and
+     has no idea which button produced them. No second order path exists. */
+  var DIRECT_KEY = "vp.buynow.v1";
+  var directItems = null;
+
+  function readDirect() {
+    try {
+      var raw = window.sessionStorage.getItem(DIRECT_KEY);
+      if (!raw) return null;
+      var list = sanitise(JSON.parse(raw));
+      return list.length ? list : null;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  /** Starts a direct order. Same checks the cart applies, for the same reasons. */
+  function startDirect(productSlug, variantId, qty) {
+    variantId = variantId || "";
+    if (catalogState !== "ready") {
+      return { ok: false, reason: "not-ready", message: "The shop is still loading. Try again in a moment." };
+    }
+    var probe = resolve({ productSlug: productSlug, variantId: variantId, qty: 1 });
+    if (!probe) return { ok: false, reason: "unknown", message: "That product is no longer available." };
+    if (probe.stock === "out") {
+      return {
+        ok: false,
+        reason: "out-of-stock",
+        message: probe.variantLabel
+          ? probe.name + " (" + probe.variantLabel + ") is out of stock."
+          : probe.name + " is out of stock.",
+      };
+    }
+    var one = [{
+      productSlug: productSlug,
+      variantId: variantId,
+      qty: clampQty(normaliseQty(qty) || minPerProduct()),
+    }];
+    directItems = one;
+    try { window.sessionStorage.setItem(DIRECT_KEY, JSON.stringify(one)); } catch (e) {}
+    return { ok: true };
+  }
+
+  /** Re-activates a direct order stored by a previous page. */
+  function resumeDirect() {
+    directItems = readDirect();
+    return directItems !== null;
+  }
+
+  function endDirect() {
+    directItems = null;
+    try { window.sessionStorage.removeItem(DIRECT_KEY); } catch (e) {}
+  }
+
+  function isDirect() { return directItems !== null; }
+
+  /** The items every total is built from: the direct order when one is running. */
+  function activeItems() { return directItems || items; }
+
+  /** Saves whichever order is on screen, to whichever store owns it. */
+  function persistActive() {
+    if (directItems) {
+      try { window.sessionStorage.setItem(DIRECT_KEY, JSON.stringify(directItems)); } catch (e) {}
+      return;
+    }
+    persist();
+  }
+
   // -------------------------------------------------------------- public API --
 
   function lines() {
     if (!catalog) return [];
+    var src = activeItems();
     var out = [];
-    for (var i = 0; i < items.length; i++) {
-      var line = resolve(items[i]);
+    for (var i = 0; i < src.length; i++) {
+      var line = resolve(src[i]);
       if (line) out.push(line);
     }
     return out;
@@ -265,6 +365,15 @@
   function totalQty() {
     // Deliberately derived from storage, not from lines(): the header badge is
     // then correct on first paint, before the catalogue has finished loading.
+    var src = activeItems();
+    var n = 0;
+    for (var i = 0; i < src.length; i++) n += src[i].qty;
+    return n;
+  }
+
+  /** The basket only, whatever a direct order is doing. Used by the header
+      badge, which must keep counting what the shopper actually saved. */
+  function cartCount() {
     var n = 0;
     for (var i = 0; i < items.length; i++) n += items[i].qty;
     return n;
@@ -295,7 +404,7 @@
     }
 
     var key = productSlug + KEY_SEP + variantId;
-    var idx = indexOfKey(key);
+    var idx = indexInCart(key);
     if (idx === -1) {
       items.push({ productSlug: productSlug, variantId: variantId, qty: clampQty(wanted) });
     } else {
@@ -314,22 +423,29 @@
     if (n === null) return { ok: false, reason: "invalid-qty" }; // "abc" -> ignored
     if (n < 1) return remove(lineKey); // 0 and negatives remove the line
 
-    items[idx].qty = clampQty(n);
-    persist();
+    var src = activeItems();
+    src[idx].qty = clampQty(n);
+    persistActive();
     emit("cart:change", { key: lineKey });
-    return { ok: true, qty: items[idx].qty };
+    return { ok: true, qty: src[idx].qty };
   }
 
   function remove(lineKey) {
     var idx = indexOfKey(lineKey);
     if (idx === -1) return { ok: false, reason: "unknown" };
-    items.splice(idx, 1);
-    persist();
+    activeItems().splice(idx, 1);
+    // Removing the only line of a direct order ends it rather than leaving an
+    // empty one behind that would silently fall back to the basket.
+    if (directItems && directItems.length === 0) endDirect();
+    persistActive();
     emit("cart:remove", { key: lineKey });
     return { ok: true };
   }
 
+  /* Empties whichever order is on screen. After a direct purchase the basket
+     must survive — the shopper never agreed to lose it. */
   function clear() {
+    if (directItems) { endDirect(); return { ok: true, direct: true }; }
     items = [];
     persist();
     emit("cart:change", { cleared: true });
@@ -338,6 +454,18 @@
 
   function meetsMinOrder() {
     return totalQty() >= config.MIN_ORDER_QTY;
+  }
+
+  /* Lines below the per-product minimum. Checked per line and never summed:
+     one each of four products does not satisfy a minimum of four. */
+  function linesBelowMin() {
+    var min = minPerProduct();
+    if (min <= 1) return [];
+    var out = [], ls = lines();
+    for (var i = 0; i < ls.length; i++) {
+      if (ls[i].qty < min) out.push({ name: ls[i].name, qty: ls[i].qty, short: min - ls[i].qty });
+    }
+    return out;
   }
 
   function shortToMinOrder() {
@@ -364,6 +492,13 @@
   window.vpCart = {
     add: add,
     setQty: setQty,
+    minPerProduct: minPerProduct,
+    linesBelowMin: linesBelowMin,
+    startDirect: startDirect,
+    resumeDirect: resumeDirect,
+    endDirect: endDirect,
+    isDirect: isDirect,
+    cartCount: cartCount,
     remove: remove,
     clear: clear,
     lines: lines,
@@ -372,7 +507,8 @@
     shipping: shipping,
     total: total,
     shippingNote: shippingNote,
-    toFreeShipping: toFreeShipping,
+    shippingBlocks: shippingBlocks,
+    blockSize: blockSize,
     meetsMinOrder: meetsMinOrder,
     shortToMinOrder: shortToMinOrder,
     hasOutOfStock: hasOutOfStock,
@@ -400,7 +536,9 @@
   function money(cents) { return window.vpCart.formatMoney(cents); }
 
   function renderBadge() {
-    var n = window.vpCart.totalQty();
+    // cartCount, not totalQty: the badge counts the saved basket. A "buy it
+    // now" in progress must not look as though it changed what is in the cart.
+    var n = window.vpCart.cartCount();
     $$("[data-cart-badge]").forEach(function (el) {
       el.textContent = String(n);
       el.hidden = n === 0;
@@ -463,7 +601,7 @@
     qty.type = "number";
     qty.className = "cart-qty";
     qty.id = "qty-" + line.key.replace(/[^a-z0-9]/gi, "-");
-    qty.min = "1";
+    qty.min = String(window.vpCart.minPerProduct());
     qty.max = String(window.vpCart.config().MAX_QTY_PER_LINE);
     qty.step = "1";
     qty.inputMode = "numeric";
@@ -525,35 +663,53 @@
 
     $("[data-cart-subtotal]").textContent = money(cart.subtotal());
 
-    // null = policy not set yet: show the note, never a number.
+    // Always a number now: 0 is free, anything else is charged per pack.
     var ship = cart.shipping();
     var shipCell = $("[data-cart-shipping]");
-    shipCell.textContent = ship === null ? cart.shippingNote() : ship === 0 ? "Free" : money(ship);
-    shipCell.classList.toggle("is-note", ship === null);
+    shipCell.textContent = ship === 0 ? "Free" : money(ship);
+    shipCell.classList.toggle("is-note", false);
 
     $("[data-cart-total]").textContent = money(cart.total());
     var totalNote = $("[data-cart-total-note]");
-    if (totalNote) totalNote.hidden = ship !== null;
+    if (totalNote) totalNote.hidden = true;
 
-    var away = cart.toFreeShipping();
+    /* Postage rises a whole charge at a time — add one more pack and the total
+       jumps by $25, not by a few cents. Saying the rule out loud next to the
+       amount is what stops that reading as a bug. */
     var nudge = $("[data-cart-freeship]");
     if (nudge) {
-      nudge.hidden = away <= 0;
-      if (away > 0) nudge.textContent = "Spend " + money(away) + " more for free shipping.";
+      var note = ship > 0 ? cart.shippingNote() : "";
+      nudge.hidden = !note;
+      nudge.textContent = note;
     }
 
     var cfg = cart.config();
 
-    // Minimum-order branch. With MIN_ORDER_QTY = 1 this never shows for a
-    // non-empty cart; it is exercised by temporarily raising the setting.
+    // Two different minimums, and the per-product one is named first because it
+    // is the one that actually stops orders. It has to say WHY four of one beats
+    // one of four, or the shopper just sees a dead button and leaves.
+    var belowMin = cart.linesBelowMin();
     var short = cart.shortToMinOrder();
-    warn.hidden = short === 0;
-    if (short > 0) {
+
+    if (belowMin.length > 0) {
+      warn.hidden = false;
+      warn.textContent =
+        "Each product is sold in packs of " + cart.minPerProduct() + ". " +
+        belowMin
+          .map(function (l) {
+            return l.name + " needs " + l.short + " more (" + l.qty + " of " + cart.minPerProduct() + ")";
+          })
+          .join("; ") +
+        ". Different products cannot be combined to make up the " + cart.minPerProduct() + ".";
+    } else if (short > 0) {
+      warn.hidden = false;
       warn.textContent = "Add " + short + " more item" + (short === 1 ? "" : "s") +
         " to reach the " + cfg.MIN_ORDER_QTY + "-item minimum order.";
+    } else {
+      warn.hidden = true;
     }
 
-    var blocked = !cart.meetsMinOrder() || cart.hasOutOfStock();
+    var blocked = !cart.meetsMinOrder() || cart.hasOutOfStock() || belowMin.length > 0;
     checkoutBtn.disabled = blocked;
     checkoutBtn.setAttribute("aria-disabled", blocked ? "true" : "false");
   }
@@ -616,7 +772,9 @@
     drawer.addEventListener("change", function (e) {
       var key = e.target.getAttribute && e.target.getAttribute("data-qty-for");
       if (!key) return;
-      window.vpCart.setQty(key, e.target.value === "" ? 1 : e.target.value);
+      // Emptying the box lands on the minimum, not on 1 — 1 is not a quantity
+      // this shop can sell when products go out in packs.
+      window.vpCart.setQty(key, e.target.value === "" ? window.vpCart.minPerProduct() : e.target.value);
       render();
     });
     drawer.addEventListener("click", function (e) {

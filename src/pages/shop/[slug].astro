@@ -159,6 +159,20 @@ const heroImage = p.images[variant?.imageIndex ?? 0] ?? p.images[0];
               </ul>
             </section>
           )}
+
+          {/* Medical notice. Moved out of the buy column so it no longer sits
+              between the price and the button, but kept in full and kept on
+              the page — this is the paragraph that matters if anyone ever
+              argues we implied a medical benefit. */}
+          <section class="pd-section pd-legal" id="product-notice" aria-label="Product notice">
+            <p>
+              Individual results vary. This is a general wellness product, not a
+              medical device or medicine, and nothing here is medical advice. If
+              you have a specific health concern, an existing condition, or you
+              are unsure whether this product suits you, speak to a qualified
+              healthcare professional first.
+            </p>
+          </section>
         </div>
       </div>
     </div>

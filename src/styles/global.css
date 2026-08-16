@@ -1415,3 +1415,118 @@ body.cart-open { overflow: hidden; }
   font-size: 0.88rem;
   white-space: nowrap;
 }
+
+/* ---------- Minimum order quantity ----------
+   Stated on the product page, above the button. A shopper who only meets this
+   rule in the cart has already decided to buy and then been told no. */
+.buybox-moq {
+  background: #fff6ed;
+  border: 1px solid #f7c99b;
+  border-left: 4px solid var(--orange-deep);
+  border-radius: 8px;
+  padding: 12px 14px;
+  margin-bottom: 16px;
+  font-size: 0.88rem;
+  line-height: 1.55;
+  color: var(--gray-900);
+}
+.buybox-moq strong { color: var(--orange-deeper); }
+.buybox-moq-price {
+  display: block;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid #f0d3b4;
+  font-variant-numeric: tabular-nums;
+}
+.buybox-moq-price strong { color: var(--navy-dark); font-size: 1.05rem; }
+
+/* ---------- Quantity stepper ---------- */
+.qty-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 12px;
+}
+.qty-label { font-weight: 700; color: var(--navy); font-size: 0.95rem; }
+.qty-stepper {
+  display: inline-flex;
+  align-items: stretch;
+  border: 1px solid var(--gray-200);
+  border-radius: 10px;
+  overflow: hidden;
+  background: var(--white);
+}
+.qty-btn {
+  width: 42px;
+  border: 0;
+  background: var(--gray-50);
+  color: var(--navy);
+  font-size: 1.25rem;
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+  font-family: inherit;
+}
+.qty-btn:hover:not(:disabled) { background: var(--gray-100); }
+.qty-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+.qty-btn:focus-visible { outline: 3px solid var(--navy-light); outline-offset: -3px; }
+.qty-stepper .qty-input {
+  width: 62px;
+  border: 0;
+  border-left: 1px solid var(--gray-200);
+  border-right: 1px solid var(--gray-200);
+  text-align: center;
+  font-family: inherit;
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--navy-dark);
+  padding: 10px 0;
+  -moz-appearance: textfield;
+}
+.qty-stepper .qty-input::-webkit-outer-spin-button,
+.qty-stepper .qty-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+
+/* ---------- Buy it now / Add to cart ----------
+   BUY IT NOW carries the site accent; --orange-deep is the AA-safe one (4.7:1
+   with white), unlike the brighter --orange used for decoration. */
+.buy-btn.buy-now {
+  background: var(--orange-deep);
+  color: var(--white);
+  font-weight: 800;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+}
+.buy-btn.buy-now:hover:not(:disabled) { background: var(--orange-deeper); }
+.buy-btn.buy-btn-outline {
+  background: var(--white);
+  color: var(--navy);
+  border: 2px solid var(--gray-200);
+  font-weight: 700;
+}
+.buy-btn.buy-btn-outline:hover:not(:disabled) {
+  border-color: var(--navy);
+  background: var(--gray-50);
+}
+.buybox-ask {
+  margin-top: 14px;
+  font-size: 0.86rem;
+  color: var(--gray-600);
+  text-align: center;
+}
+.buybox-ask a { color: var(--navy); text-decoration: underline; }
+
+/* ---------- Product medical notice ----------
+   Moved out of the buy column to the foot of the page. Still full text, still
+   readable — just no longer standing between the price and the button. */
+.pd-legal {
+  margin-top: 8px;
+  padding-top: 20px;
+  border-top: 1px solid var(--gray-200);
+}
+.pd-legal p {
+  color: var(--gray-600);
+  font-size: 0.84rem;
+  line-height: 1.6;
+  max-width: 70ch;
+}

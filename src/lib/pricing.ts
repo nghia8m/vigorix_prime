@@ -30,21 +30,32 @@ export interface CatalogueProduct {
 
 export type Catalogue = Record<string, CatalogueProduct>;
 
-export interface ShippingRate {
-  id: string;
-  label: string;
-  flatCents: number;
-}
-
 export interface ShippingSettings {
+  /**
+   * OFF means FREE, not "unknown". There is no third state any more: either the
+   * order is charged per pack, or it ships free and the cart says so.
+   */
   enabled: boolean;
-  freeOverCents: number;
-  rates: ShippingRate[];
+  /** Charged once per pack of `blockSize` items. 2500 = $25.00. */
+  perBlockCents: number;
+  /**
+   * Items covered by one charge. Follows the per-product pack size, because a
+   * pack is the unit the warehouse actually boxes and posts — 3 items in, one
+   * parcel out.
+   */
+  blockSize: number;
 }
 
 export interface PricingLimits {
   minOrderQty: number;
   maxQtyPerLine: number;
+  /**
+   * Smallest quantity of ONE product an order may contain, applied per line.
+   * Four different products, one each, does NOT satisfy a minimum of 4 — the
+   * rule exists because stock is bought by the box, so it has to bite on the
+   * line rather than on the order.
+   */
+  minQtyPerLine: number;
 }
 
 /** Everything the client is allowed to influence. Note: no prices. */
@@ -56,8 +67,6 @@ export interface PriceRequestItem {
 
 export interface PriceRequest {
   items: PriceRequestItem[];
-  /** Which shipping rate the shopper picked; the AMOUNT is looked up here. */
-  shippingRateId?: string | null;
 }
 
 export interface PricedLine {
@@ -83,8 +92,9 @@ export type PriceFailure = {
     | "invalid_quantity"
     | "out_of_stock"
     | "duplicate_line"
-    | "unknown_shipping_rate"
-    | "below_minimum";
+    | "below_minimum"
+    | "below_line_minimum"
+    | "not_whole_packs";
   message: string;
   at?: number;
 };
@@ -93,10 +103,10 @@ export type PriceSuccess = {
   ok: true;
   lines: PricedLine[];
   subtotalCents: number;
-  /** null when no shipping policy is switched on — not zero, which means free. */
-  shippingCents: number | null;
+  /** Always a number. 0 means free — there is no "undecided" shipping state. */
+  shippingCents: number;
   totalCents: number;
-  shippingMethod: { id: string; label: string } | null;
+  shippingMethod: { id: string; label: string };
   totalQty: number;
 };
 
@@ -172,6 +182,9 @@ export function priceOrder(ctx: PricingContext, request: PriceRequest): PriceRes
     const qtyError = checkQty(item.qty, ctx.limits.maxQtyPerLine);
     if (qtyError) return fail("invalid_quantity", qtyError, i);
 
+    // Stock first. "Buy 3 of these" is useless advice about something we cannot
+    // send at all, so the pack rules below only run once we know the item can
+    // actually be shipped.
     const stock = variant ? variant.stock : product.stock;
     if (stock === "out") {
       return fail(
@@ -179,6 +192,32 @@ export function priceOrder(ctx: PricingContext, request: PriceRequest): PriceRes
         `${product.name}${variant ? ` (${variant.label})` : ""} is out of stock.`,
         i
       );
+    }
+
+    // Per-line minimum, checked here rather than against the order total: four
+    // different products at one each must NOT pass a minimum of four.
+    const minLine = ctx.limits.minQtyPerLine;
+    if (minLine > 1) {
+      const label = `${product.name}${variant ? ` (${variant.label})` : ""}`;
+      if (item.qty < minLine) {
+        return fail(
+          "below_line_minimum",
+          `${label} is sold in packs of ${minLine}; this order has ${item.qty}. ` +
+            `Different products cannot be combined to reach it.`,
+          i
+        );
+      }
+      // Whole packs only. Without this the rule is decoration: the stepper
+      // offers 4, 8, 12, but a request built by hand could still ask for 6 and
+      // be charged for a quantity the warehouse cannot pick.
+      if (item.qty % minLine !== 0) {
+        return fail(
+          "not_whole_packs",
+          `${label} is sold in packs of ${minLine}, so the quantity must be a multiple of ` +
+            `${minLine}; this order has ${item.qty}.`,
+          i
+        );
+      }
     }
 
     // The only place a unit price is ever produced: catalogue + variant delta.
@@ -207,33 +246,30 @@ export function priceOrder(ctx: PricingContext, request: PriceRequest): PriceRes
     );
   }
 
-  // ---- shipping, also looked up rather than accepted -----------------------
-  let shippingCents: number | null = null;
-  let shippingMethod: { id: string; label: string } | null = null;
-
-  if (ctx.shipping.enabled) {
-    const rates = ctx.shipping.rates;
-    const wanted = request.shippingRateId;
-    let rate: ShippingRate | undefined;
-    if (wanted) {
-      rate = rates.find((r) => r.id === wanted);
-      if (!rate) return fail("unknown_shipping_rate", `No such shipping rate: ${wanted}.`);
-    } else {
-      rate = rates[0];
-    }
-    if (!rate) return fail("unknown_shipping_rate", "Shipping is enabled but no rates are configured.");
-
-    shippingMethod = { id: rate.id, label: rate.label };
-    // STRICTLY above: a $50.00 order still pays postage, $50.01 does not.
-    shippingCents = subtotalCents > ctx.shipping.freeOverCents ? 0 : rate.flatCents;
-  }
+  // ---- shipping, computed here and never accepted from the client ----------
+  //
+  // One charge per pack, rounded UP: 3 items is one charge, 4 would be two.
+  // With packs enforced above, the total is always a whole number of packs, so
+  // the rounding never actually bites — it is here so that turning packs off
+  // cannot silently start shipping four items for the price of three.
+  //
+  // Switched off means FREE (0), never null. There is no "we have not decided"
+  // state left to render.
+  const blockSize = Math.max(1, Math.floor(ctx.shipping.blockSize) || 1);
+  const blocks = Math.ceil(totalQty / blockSize);
+  const shippingCents = ctx.shipping.enabled
+    ? blocks * Math.max(0, Math.round(ctx.shipping.perBlockCents))
+    : 0;
+  const shippingMethod = ctx.shipping.enabled
+    ? { id: "per-pack", label: `${blocks} × pack postage` }
+    : { id: "free", label: "Free shipping" };
 
   return {
     ok: true,
     lines,
     subtotalCents,
     shippingCents,
-    totalCents: subtotalCents + (shippingCents ?? 0),
+    totalCents: subtotalCents + shippingCents,
     shippingMethod,
     totalQty,
   };

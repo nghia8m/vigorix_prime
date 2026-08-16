@@ -42,7 +42,7 @@ const CATALOGUE = {
   },
 };
 
-const LIMITS = { minOrderQty: 1, maxQtyPerLine: 99 };
+const LIMITS = { minOrderQty: 1, maxQtyPerLine: 99, minQtyPerLine: 1 };
 
 const ctx = (shipping: PricingContext["shipping"]): PricingContext => ({
   catalogue: structuredClone(CATALOGUE),
@@ -50,15 +50,8 @@ const ctx = (shipping: PricingContext["shipping"]): PricingContext => ({
   limits: LIMITS,
 });
 
-const SHIP_OFF = { enabled: false, freeOverCents: 5000, rates: [] };
-const SHIP_ON = {
-  enabled: true,
-  freeOverCents: 5000,
-  rates: [
-    { id: "standard", label: "Standard", flatCents: 495 },
-    { id: "express", label: "Express", flatCents: 1295 },
-  ],
-};
+const SHIP_OFF = { enabled: false, perBlockCents: 2500, blockSize: 3 };
+const SHIP_ON = { enabled: true, perBlockCents: 2500, blockSize: 3 };
 
 const ok = (r: ReturnType<typeof priceOrder>): PriceSuccess => {
   assert.equal(r.ok, true, "expected success, got: " + JSON.stringify(r));
@@ -195,73 +188,155 @@ describe("rejections", () => {
   });
 
   test("below the minimum order quantity", () => {
-    const strict: PricingContext = { ...ctx(SHIP_OFF), limits: { minOrderQty: 3, maxQtyPerLine: 99 } };
+    const strict: PricingContext = {
+      ...ctx(SHIP_OFF),
+      limits: { minOrderQty: 3, maxQtyPerLine: 99, minQtyPerLine: 1 },
+    };
     const r = rejected(priceOrder(strict, {
       items: [{ productSlug: "knee-support-brace", variantId: "size-s", qty: 2 }],
     }));
     assert.equal(r.code, "below_minimum");
   });
 
-  test("a shipping rate id that does not exist", () => {
-    const r = rejected(priceOrder(ctx(SHIP_ON), {
-      items: [{ productSlug: "knee-support-brace", variantId: "size-s", qty: 1 }],
-      shippingRateId: "teleport",
+  test("a line below the per-product minimum", () => {
+    const packs: PricingContext = {
+      ...ctx(SHIP_OFF),
+      limits: { minOrderQty: 1, maxQtyPerLine: 99, minQtyPerLine: 4 },
+    };
+    const r = rejected(priceOrder(packs, {
+      items: [{ productSlug: "knee-support-brace", variantId: "size-s", qty: 3 }],
     }));
-    assert.equal(r.code, "unknown_shipping_rate");
+    assert.equal(r.code, "below_line_minimum");
+    assert.equal(r.at, 0);
   });
+
+  // The whole point of a per-line minimum. Four items, four lines, one each:
+  // the order total says 4, every line says 1, and it must still be refused.
+  // Summing the order instead of checking the lines would let this through.
+  test("four different products, one each, does NOT satisfy a minimum of four", () => {
+    const packs: PricingContext = {
+      ...ctx(SHIP_OFF),
+      limits: { minOrderQty: 4, maxQtyPerLine: 99, minQtyPerLine: 4 },
+    };
+    const r = rejected(priceOrder(packs, {
+      items: [
+        { productSlug: "knee-support-brace", variantId: "size-s", qty: 1 },
+        { productSlug: "knee-support-brace", variantId: "size-m", qty: 1 },
+        { productSlug: "herbal-warming-patch", variantId: "pack-8", qty: 1 },
+        { productSlug: "single-item-no-variants", variantId: "", qty: 1 },
+      ],
+    }));
+    assert.equal(r.code, "below_line_minimum");
+  });
+
+  // The stepper only offers multiples, so this can only arrive from a
+  // hand-built request — which is exactly why the server has to catch it.
+  test("a quantity between two packs is refused", () => {
+    const packs: PricingContext = {
+      ...ctx(SHIP_OFF),
+      limits: { minOrderQty: 1, maxQtyPerLine: 99, minQtyPerLine: 4 },
+    };
+    const r = rejected(priceOrder(packs, {
+      items: [{ productSlug: "knee-support-brace", variantId: "size-s", qty: 6 }],
+    }));
+    assert.equal(r.code, "not_whole_packs");
+  });
+
+  test("two whole packs are accepted", () => {
+    const packs: PricingContext = {
+      ...ctx(SHIP_OFF),
+      limits: { minOrderQty: 1, maxQtyPerLine: 99, minQtyPerLine: 4 },
+    };
+    const r = priceOrder(packs, {
+      items: [{ productSlug: "knee-support-brace", variantId: "size-s", qty: 8 }],
+    });
+    assert.equal(r.ok, true);
+    if (r.ok) assert.equal(r.totalQty, 8);
+  });
+
+  test("exactly the per-product minimum is accepted", () => {
+    const packs: PricingContext = {
+      ...ctx(SHIP_OFF),
+      limits: { minOrderQty: 1, maxQtyPerLine: 99, minQtyPerLine: 4 },
+    };
+    const r = priceOrder(packs, {
+      items: [{ productSlug: "knee-support-brace", variantId: "size-s", qty: 4 }],
+    });
+    assert.equal(r.ok, true);
+    if (r.ok) assert.equal(r.totalQty, 4);
+  });
+
+
+  // The campaign must not eat the configured rate: switching it off has to
+  // bring the real postage back without anyone retyping it.
+
 });
 
-describe("shipping", () => {
-  test("disabled => shippingCents is null, not zero", () => {
-    const r = ok(priceOrder(ctx(SHIP_OFF), {
-      items: [{ productSlug: "knee-support-brace", variantId: "size-s", qty: 1 }],
-    }));
-    assert.equal(r.shippingCents, null);
-    assert.equal(r.shippingMethod, null);
-    assert.equal(r.totalCents, r.subtotalCents);
+describe("shipping — one charge per pack", () => {
+  const P = (qty: number) => [{ productSlug: "knee-support-brace", variantId: "size-s", qty }];
+
+  test("switched off means FREE, and free is a number not a blank", () => {
+    const r = priceOrder(ctx(SHIP_OFF), { items: P(3) });
+    assert.equal(r.ok, true);
+    if (r.ok) {
+      assert.equal(r.shippingCents, 0);
+      assert.equal(r.shippingMethod.id, "free");
+      assert.equal(r.totalCents, r.subtotalCents);
+    }
   });
 
-  test("subtotal $49.99 pays the flat rate", () => {
-    const c = ctx(SHIP_ON);
-    c.catalogue["knee-support-brace"].priceCents = 4999;
-    const r = ok(priceOrder(c, { items: [{ productSlug: "knee-support-brace", variantId: "size-s", qty: 1 }] }));
-    assert.equal(r.subtotalCents, 4999);
-    assert.equal(r.shippingCents, 495);
-    assert.equal(r.totalCents, 5494);
+  test("one pack pays one charge", () => {
+    const r = priceOrder(ctx(SHIP_ON), { items: P(3) });
+    assert.equal(r.ok, true);
+    if (r.ok) assert.equal(r.shippingCents, 2500);
   });
 
-  test("subtotal exactly $50.00 STILL pays (threshold is exclusive)", () => {
-    const c = ctx(SHIP_ON);
-    c.catalogue["knee-support-brace"].priceCents = 5000;
-    const r = ok(priceOrder(c, { items: [{ productSlug: "knee-support-brace", variantId: "size-s", qty: 1 }] }));
-    assert.equal(r.subtotalCents, 5000);
-    assert.equal(r.shippingCents, 495);
-    assert.equal(r.totalCents, 5495);
+  test("two packs pay two charges", () => {
+    const r = priceOrder(ctx(SHIP_ON), { items: P(6) });
+    assert.equal(r.ok, true);
+    if (r.ok) assert.equal(r.shippingCents, 5000);
   });
 
-  test("subtotal $50.01 ships free", () => {
-    const c = ctx(SHIP_ON);
-    c.catalogue["knee-support-brace"].priceCents = 5001;
-    const r = ok(priceOrder(c, { items: [{ productSlug: "knee-support-brace", variantId: "size-s", qty: 1 }] }));
-    assert.equal(r.subtotalCents, 5001);
-    assert.equal(r.shippingCents, 0);
-    assert.equal(r.totalCents, 5001);
+  // Packs of different products still count together: postage follows the
+  // number of items leaving the warehouse, not the number of product lines.
+  test("three of one plus three of another is two charges, not one", () => {
+    const r = priceOrder(ctx(SHIP_ON), {
+      items: [
+        { productSlug: "knee-support-brace", variantId: "size-s", qty: 3 },
+        { productSlug: "herbal-warming-patch", variantId: "pack-8", qty: 3 },
+      ],
+    });
+    assert.equal(r.ok, true);
+    if (r.ok) {
+      assert.equal(r.totalQty, 6);
+      assert.equal(r.shippingCents, 5000);
+    }
   });
 
-  test("the chosen rate is looked up, not taken from the request", () => {
-    const r = ok(priceOrder(ctx(SHIP_ON), {
-      items: [{ productSlug: "knee-support-brace", variantId: "size-s", qty: 1 }],
-      shippingRateId: "express",
-    }));
-    assert.equal(r.shippingCents, 1295);
-    assert.deepEqual(r.shippingMethod, { id: "express", label: "Express" });
+  // A big order must not silently ship for one charge.
+  test("nine items pay three charges", () => {
+    const r = priceOrder(ctx(SHIP_ON), { items: P(9) });
+    assert.equal(r.ok, true);
+    if (r.ok) assert.equal(r.shippingCents, 7500);
   });
 
-  test("no rate given falls back to the first configured one", () => {
-    const r = ok(priceOrder(ctx(SHIP_ON), {
-      items: [{ productSlug: "knee-support-brace", variantId: "size-s", qty: 1 }],
-    }));
-    assert.equal(r.shippingMethod?.id, "standard");
+  // Packs are enforced elsewhere, so a part pack cannot arrive through the
+  // shop. If it ever did, it must round UP — never ship four for the price of
+  // three.
+  test("a part pack rounds up rather than down", () => {
+    const noPacks: PricingContext = {
+      ...ctx(SHIP_ON),
+      limits: { minOrderQty: 1, maxQtyPerLine: 99, minQtyPerLine: 1 },
+    };
+    const r = priceOrder(noPacks, { items: P(4) });
+    assert.equal(r.ok, true);
+    if (r.ok) assert.equal(r.shippingCents, 5000);
+  });
+
+  test("the total is subtotal plus postage", () => {
+    const r = priceOrder(ctx(SHIP_ON), { items: P(3) });
+    assert.equal(r.ok, true);
+    if (r.ok) assert.equal(r.totalCents, r.subtotalCents + 2500);
   });
 });
 

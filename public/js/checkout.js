@@ -16,7 +16,6 @@
 
   var form, lines, sumLines, empty, grid, devout, devoutJson, submitBtn;
   var rules = { regionLabels: {}, regionRequired: [], noPostalCode: [], defaultRegionLabel: "Region" };
-  var selectedRateId = null;
   var submitting = false; // re-entrancy guard for a single click burst
   var lastSubmitAt = 0; // timestamp of the last accepted submit
   var DOUBLE_CLICK_MS = 1200; // repeats inside this window are the same action
@@ -124,78 +123,38 @@
     return li;
   }
 
+  /* One postage model, so there is nothing to pick. This renders a plain
+     statement of what the order is being charged and why, instead of a radio
+     group with a single option in it. */
   function renderShippingMethods() {
     var host = $("[data-co-shipping-methods]");
     if (!host) return;
-    var cfg = window.vpCart.shippingConfig();
+    var cart = window.vpCart;
+    var cfg = cart.shippingConfig();
     host.innerHTML = "";
 
+    var note = document.createElement("p");
+    note.className = "co-ship-note";
+    var sub = document.createElement("p");
+    sub.className = "co-hint";
+
     if (!cfg.enabled) {
-      // No confirmed policy: say so, offer nothing to choose, and never show a
-      // number the owner has not agreed to.
-      var note = document.createElement("p");
-      note.className = "co-ship-note";
-      note.textContent = cfg.displayNote;
-      var sub = document.createElement("p");
-      sub.className = "co-hint";
-      sub.textContent = "The total below does not include shipping yet.";
-      host.appendChild(note);
-      host.appendChild(sub);
-      selectedRateId = null;
-      return;
+      note.textContent = "Free shipping";
+      sub.textContent = "Postage is included in the prices shown.";
+    } else {
+      var blocks = cart.shippingBlocks();
+      note.textContent = money(cart.shipping());
+      sub.textContent =
+        cart.shippingNote() + " — " + cart.totalQty() + " items, " +
+        blocks + (blocks === 1 ? " charge." : " charges.");
     }
-
-    var free = window.vpCart.subtotal() > cfg.freeOverCents;
-    var fs = document.createElement("fieldset");
-    fs.className = "co-rates";
-    var lg = document.createElement("legend");
-    lg.textContent = "Choose a shipping method";
-    fs.appendChild(lg);
-
-    cfg.rates.forEach(function (rate, i) {
-      if (selectedRateId === null && i === 0) selectedRateId = rate.id;
-      var lab = document.createElement("label");
-      lab.className = "co-rate";
-      var input = document.createElement("input");
-      input.type = "radio";
-      input.name = "shippingRate";
-      input.value = rate.id;
-      input.checked = rate.id === selectedRateId;
-      input.setAttribute("data-co-rate", rate.id);
-      var text = document.createElement("span");
-      text.className = "co-rate-text";
-      text.innerHTML = "";
-      var t1 = document.createElement("span");
-      t1.className = "co-rate-label";
-      t1.textContent = rate.label + (rate.etaDays ? " · " + rate.etaDays + " days" : "");
-      var t2 = document.createElement("span");
-      t2.className = "co-rate-price";
-      t2.textContent = free ? "Free" : money(rate.flatCents);
-      text.appendChild(t1);
-      text.appendChild(t2);
-      lab.appendChild(input);
-      lab.appendChild(text);
-      fs.appendChild(lab);
-    });
-    host.appendChild(fs);
+    host.appendChild(note);
+    host.appendChild(sub);
   }
 
-  function selectedRate() {
-    var cfg = window.vpCart.shippingConfig();
-    if (!cfg.enabled) return null;
-    for (var i = 0; i < cfg.rates.length; i++) if (cfg.rates[i].id === selectedRateId) return cfg.rates[i];
-    return cfg.rates[0] || null;
-  }
-
-  /** Shipping for THIS checkout: cents, or null while the policy is off. */
+  /** Shipping for THIS checkout, in cents. Always a number; 0 means free. */
   function shippingCents() {
-    var cfg = window.vpCart.shippingConfig();
-    if (!cfg.enabled) return null;
-    var sub = window.vpCart.subtotal();
-    if (sub <= 0) return 0;
-    if (sub > cfg.freeOverCents) return 0; // strictly above — $50.00 still pays
-    var rate = selectedRate();
-    return rate ? rate.flatCents : 0;
+    return window.vpCart.shipping();
   }
 
   function render() {
@@ -237,30 +196,23 @@
 
     var sub = cart.subtotal();
     var ship = shippingCents();
-    var total = sub + (ship || 0);
+    var total = sub + ship;
 
     $("[data-co-subtotal]").textContent = money(sub);
     var shipCell = $("[data-co-shipping]");
-    shipCell.textContent = ship === null ? cart.shippingNote() : ship === 0 ? "Free" : money(ship);
-    shipCell.classList.toggle("is-note", ship === null);
+    shipCell.textContent = ship === 0 ? "Free" : money(ship);
+    shipCell.classList.toggle("is-note", false);
     $("[data-co-total]").textContent = money(total);
     $("[data-co-mini-total]").textContent = money(total);
 
+    /* Postage moves a whole charge at a time. Stating the rule beside the
+       figure is what stops a $25 jump reading as a miscalculation. */
     var rule = $("[data-co-ship-rule]");
-    var cfg = cart.shippingConfig();
-    if (ship === null) {
-      rule.hidden = false;
-      rule.textContent = "Total does not include shipping yet.";
-    } else if (ship === 0 && sub > cfg.freeOverCents) {
-      rule.hidden = false;
-      rule.textContent = "Free shipping applies above " + money(cfg.freeOverCents) + ".";
-    } else {
-      var need = cfg.freeOverCents - sub + 1;
-      rule.hidden = need <= 0;
-      if (need > 0) rule.textContent = "Spend " + money(need) + " more for free shipping.";
-    }
+    var note = ship > 0 ? cart.shippingNote() : "";
+    rule.hidden = !note;
+    rule.textContent = note;
 
-    submitBtn.disabled = outLines.length > 0;
+    if (submitBtn) submitBtn.disabled = outLines.length > 0;
   }
 
   // ------------------------------------------------------------ validation --
@@ -358,7 +310,6 @@
     var cart = window.vpCart;
     var f = function (n) { return (form.elements[n] ? form.elements[n].value : "").trim(); };
     var ship = shippingCents();
-    var rate = selectedRate();
     var sub = cart.subtotal();
 
     // ⚠ THIS OBJECT IS BUILT BY THE CLIENT.
@@ -397,7 +348,9 @@
         postalCode: f("postalCode"),
         country: f("country"),
       },
-      shippingMethod: rate ? { id: rate.id, label: rate.label } : null,
+      shippingMethod: window.vpCart.shippingConfig().enabled
+        ? { id: "per-pack", label: window.vpCart.shippingBlocks() + " × pack postage" }
+        : { id: "free", label: "Free shipping" },
       status: "draft",
     };
   }
@@ -433,7 +386,7 @@
     lastSubmitAt = now;
 
     submitting = true;
-    submitBtn.disabled = true;
+    if (submitBtn) submitBtn.disabled = true;
 
     var order = buildOrder();
     currentOrder = order;
@@ -447,7 +400,7 @@
     showOrder(order);
 
     // The cart is intentionally left untouched: nothing has been paid for.
-    submitBtn.disabled = false;
+    if (submitBtn) submitBtn.disabled = false;
     submitting = false;
   }
 
@@ -495,6 +448,20 @@
   }
 
   function wire() {
+    /* "Buy it now" hands this page a single product instead of the basket.
+       Resuming it BEFORE anything reads the cart is what keeps the basket out
+       of the totals; the shopper's saved items stay in localStorage, untouched,
+       and are still there when they come back. */
+    if (/[?&]buynow=1\b/.test(window.location.search)) {
+      if (!window.vpCart.resumeDirect()) {
+        // Storage was cleared, or the tab was reopened from history. Falling
+        // back to the basket would silently charge for the wrong things, so
+        // send them back to the product rather than guess.
+        window.location.replace("/shop");
+        return;
+      }
+    }
+
     form = $("[data-co-form]");
     lines = $("[data-co-lines]");
     sumLines = $("[data-co-sum-lines]");
@@ -528,7 +495,14 @@
       validateField($("#country"));
     });
 
-    form.addEventListener("submit", submit);
+    /* There is no submit button any more — payment happens through the PayPal
+       buttons. A form still submits when Enter is pressed in a text field
+       though, so this stays wired: it swallows the event instead of running the
+       old review-order path. */
+    form.addEventListener("submit", function (e) {
+      e.preventDefault();
+      if (submitBtn) submit(e);
+    });
 
     lines.addEventListener("change", function (e) {
       var key = e.target.getAttribute && e.target.getAttribute("data-co-qty-for");
@@ -537,10 +511,6 @@
     lines.addEventListener("click", function (e) {
       var btn = e.target.closest && e.target.closest("[data-co-remove]");
       if (btn) window.vpCart.remove(btn.getAttribute("data-co-remove"));
-    });
-    document.addEventListener("change", function (e) {
-      var id = e.target.getAttribute && e.target.getAttribute("data-co-rate");
-      if (id) { selectedRateId = id; render(); }
     });
 
     var toggle = $("[data-summary-toggle]");
@@ -591,7 +561,6 @@
       if (bad.length) bad[0].focus();
       return bad.length;
     },
-    shippingRateId: function () { return selectedRateId; },
     customer: function () {
       var f = function (n) { return (form.elements[n] ? form.elements[n].value : "").trim(); };
       return { email: f("email"), firstName: f("firstName"), lastName: f("lastName"), phone: f("phone") };
