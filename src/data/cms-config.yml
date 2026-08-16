@@ -278,11 +278,67 @@ collections:
         label: "Header, Footer & Code"
         file: "src/data/site.json"
         fields:
+          # -------------------------------------------------------------------
+          # SHIPPING FIRST, and open. Everything below it starts collapsed.
+          #
+          # Shipping used to sit past eight menu items and eighteen footer
+          # links: about sixty inputs of scrolling to reach a setting changed
+          # far more often than a footer link. The order is how often a thing
+          # is edited, not how neatly it groups.
+          #
+          # Shop groups is set up once and then left alone, so it sits with
+          # the collapsed blocks rather than above postage.
+          # -------------------------------------------------------------------
+          # -----------------------------------------------------------------
+          # SHIPPING — one charge per pack, and that is the whole model.
+          #
+          # There is no rate list, no free-shipping threshold and no "we have
+          # not decided" state: the switch is either ON (charge per pack) or
+          # OFF (free, and the cart says Free). Money is in CENTS.
+          #
+          # The pack size comes from Ordering rules above — a pack is what gets
+          # boxed, so it is what gets posted. Change the pack there and postage
+          # follows automatically.
+          # -----------------------------------------------------------------
+          - name: "shipping"
+            label: "Shipping"
+            widget: "object"
+            fields:
+              - name: "enabled"
+                label: "Charge for shipping"
+                widget: "boolean"
+                default: false
+                hint: "OFF = free shipping, and the cart shows the word Free. ON = each pack is charged the amount below. There is no third setting — turning this off IS the free-shipping campaign."
+              - name: "perBlockCents"
+                label: "Price per pack (CENTS)"
+                widget: "number"
+                value_type: "int"
+                min: 0
+                default: 2500
+                hint: "In cents: 2500 = $25.00. Whole numbers only — do not type 25.00. Charged once per pack, so with packs of 3 an order of 6 items pays this twice."
+              - { name: "currency", label: "Currency code", widget: "string", default: "USD" }
+          # -----------------------------------------------------------------
+          # ORDERING RULES — enforced by the server, not only by the cart, so a
+          # request sent straight to the API cannot skip them.
+          # -----------------------------------------------------------------
+          - name: "ordering"
+            label: "Ordering rules"
+            widget: "object"
+            fields:
+              - name: "minQtyPerProduct"
+                label: "Minimum quantity per product (pack size)"
+                widget: "number"
+                value_type: "int"
+                min: 1
+                max: 99
+                default: 4
+                hint: "Applies to EACH product separately. With 4, a shopper must take 4 of one product; one each of four different products does NOT count. Set to 1 to sell singles and hide every mention of packs from shoppers."
           - { name: "logoPre", label: "Logo — first part", widget: "string" }
           - { name: "logoAccent", label: "Logo — accent part", widget: "string" }
           - name: "header"
             label: "Header Navigation"
             widget: "object"
+            collapsed: true
             fields:
               - name: "nav"
                 label: "Menu Items"
@@ -294,6 +350,7 @@ collections:
           - name: "footer"
             label: "Footer"
             widget: "object"
+            collapsed: true
             fields:
               - { name: "tagline", label: "Tagline", widget: "text" }
               - name: "columns"
@@ -314,6 +371,7 @@ collections:
           - name: "hero"
             label: "Homepage Hero Banner (slideshow)"
             widget: "object"
+            collapsed: true
             fields:
               - name: "slides"
                 label: "Banner Slides (auto-rotate; leave empty for plain navy hero)"
@@ -326,6 +384,7 @@ collections:
           - name: "deals"
             label: "Deals Card (homepage)"
             widget: "object"
+            collapsed: true
             fields:
               - { name: "image", label: "Image", widget: "image", required: false }
               - { name: "title", label: "Title", widget: "string" }
@@ -342,6 +401,7 @@ collections:
           - name: "shop"
             label: "Shop groups"
             widget: "object"
+            collapsed: true
             fields:
               - name: "homeLimit"
                 label: "Products per group on the homepage"
@@ -373,53 +433,10 @@ collections:
                     required: false
                     default: ""
                     hint: "Must not claim the products are reviewed, scored or ranked — they are ours, so they are excluded from all editorial rankings. The disclosure link is added automatically."
-          # -----------------------------------------------------------------
-          # ORDERING RULES — enforced by the server, not only by the cart, so a
-          # request sent straight to the API cannot skip them.
-          # -----------------------------------------------------------------
-          - name: "ordering"
-            label: "Ordering rules"
-            widget: "object"
-            fields:
-              - name: "minQtyPerProduct"
-                label: "Minimum quantity per product (pack size)"
-                widget: "number"
-                value_type: "int"
-                min: 1
-                max: 99
-                default: 4
-                hint: "Applies to EACH product separately. With 4, a shopper must take 4 of one product; one each of four different products does NOT count. Set to 1 to sell singles and hide every mention of packs from shoppers."
-          # -----------------------------------------------------------------
-          # SHIPPING — one charge per pack, and that is the whole model.
-          #
-          # There is no rate list, no free-shipping threshold and no "we have
-          # not decided" state: the switch is either ON (charge per pack) or
-          # OFF (free, and the cart says Free). Money is in CENTS.
-          #
-          # The pack size comes from Ordering rules above — a pack is what gets
-          # boxed, so it is what gets posted. Change the pack there and postage
-          # follows automatically.
-          # -----------------------------------------------------------------
-          - name: "shipping"
-            label: "Shipping"
-            widget: "object"
-            fields:
-              - name: "enabled"
-                label: "Charge for shipping"
-                widget: "boolean"
-                default: false
-                hint: "OFF = free shipping, and the cart shows the word Free. ON = each pack is charged the amount below. There is no third setting — turning this off IS the free-shipping campaign."
-              - name: "perBlockCents"
-                label: "Price per pack (CENTS)"
-                widget: "number"
-                value_type: "int"
-                min: 0
-                default: 2500
-                hint: "In cents: 2500 = $25.00. Whole numbers only — do not type 25.00. Charged once per pack, so with packs of 3 an order of 6 items pays this twice."
-              - { name: "currency", label: "Currency code", widget: "string", default: "USD" }
           - name: "code"
             label: "Site-wide Code"
             widget: "object"
+            collapsed: true
             required: false
             fields:
               # Plain textarea (text) widgets — reliable to save. Paste raw HTML
@@ -437,5 +454,6 @@ collections:
           - name: "contact"
             label: "Contact Form"
             widget: "object"
+            collapsed: true
             fields:
               - { name: "web3formsKey", label: "Web3Forms Access Key (paste the key from web3forms.com)", widget: "string", required: false }
