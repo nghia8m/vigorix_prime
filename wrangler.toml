@@ -4,6 +4,29 @@ compatibility_flags = ["nodejs_compat"]
 pages_build_output_dir = "dist"
 
 # ---------------------------------------------------------------------------
+# Plain variables live HERE, not in the dashboard. Once a project has a
+# wrangler.toml, Cloudflare manages non-secret variables from this file and the
+# dashboard only accepts Secrets — anything typed there as "Text" is silently
+# dropped, which is exactly what happened to these three.
+#
+# Secrets stay in the dashboard on purpose: this repository is public, so a
+# PayPal secret or an admin password hash written here would be readable by
+# anyone, permanently, including in git history after deletion.
+#
+# ALLOW_DRAFT_PRODUCTS is needed at RUNTIME as well as at build time. The pages
+# are prerendered with the drafts included, but /api/paypal/capture-order
+# re-reads the catalogue when the order is placed — without the flag there it
+# filtered the drafts back out and refused every order with "unknown_product",
+# after the shopper had filled in the whole form.
+#
+# REMOVE THIS BLOCK when the products are real: the guard comes back, and the
+# shop stops depending on a flag to sell anything.
+# ---------------------------------------------------------------------------
+[vars]
+ALLOW_DRAFT_PRODUCTS = "1"
+PAYPAL_MODE = "sandbox"
+
+# ---------------------------------------------------------------------------
 # Orders database.
 #
 # LOCAL ONLY for now: `wrangler d1` keeps this database in .wrangler/state, and
