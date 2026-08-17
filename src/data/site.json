@@ -155,12 +155,12 @@
       {
         "id": "health-care",
         "label": "Health Care",
-        "note": "Health Care products we sell ourselves. They are not reviewed, scored or ranked by our editorial team — see our disclosure."
+        "note": ""
       },
       {
         "id": "skin-care",
         "label": "Skin Care",
-        "note": "Cosmetic skin care we sell ourselves. They are not reviewed, scored or ranked by our editorial team — see our disclosure."
+        "note": ""
       }
     ]
   },

@@ -38,16 +38,15 @@ const noteText = note.replace(/\s*[—-]?\s*see our disclosure\.?\s*$/i, "").tri
           {hiddenCount > 0 ? `See all ${products.length}` : "Visit the shop"} &rarr;
         </a>
       </div>
-      <p class="own-range-note">
-        {noteText ? (
-          <>{noteText} — see our <a href="/affiliate-disclosure">disclosure</a>.</>
-        ) : (
-          <>
-            Products we sell ourselves. They are not reviewed, scored or ranked by
-            our editorial team — see our <a href="/affiliate-disclosure">disclosure</a>.
-          </>
-        )}
-      </p>
+      {/* Shown only when Site settings gives the group a sentence. There used
+          to be a fallback here, which meant emptying the field in the admin
+          changed nothing — the owner could not turn the line off. Clearing it
+          now clears it. */}
+      {noteText && (
+        <p class="own-range-note">
+          {noteText} — see our <a href="/affiliate-disclosure">disclosure</a>.
+        </p>
+      )}
       <div class="card-grid cols-3 owned-grid">
         {shown.map((product) => (
           <OwnProductCard product={product} />
