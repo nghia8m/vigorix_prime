@@ -19,3 +19,11 @@ npm-debug.log*
 *.docx
 ~$*
 scripts/product-images-g*.json
+
+# THIS REPOSITORY IS PUBLIC. The owner keeps working notes in the project root,
+# and one of them holds the admin email and password in plain text. Anything
+# committed here is readable by anyone, for ever, including after a later
+# deletion — so these are excluded by name rather than trusted to care.
+Tong tin admin.txt
+Thong tin admin.txt
+Claude ko vao day/

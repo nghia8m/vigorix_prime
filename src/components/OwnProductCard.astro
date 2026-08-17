@@ -4,6 +4,7 @@
 // visually consistent, and adds .owned-product + the mandatory "Our product"
 // label so it can never be mistaken for an independently reviewed pick.
 import { formatMoney, priceOf, defaultVariant, productPath, type Product } from "../lib/products";
+import { imageSize } from "../lib/image-size";
 
 interface Props {
   product: Product;
@@ -15,16 +16,17 @@ const { product, eager = false } = Astro.props;
 const p = product.data;
 const href = productPath(p);
 const cover = p.images[0];
+const coverSize = imageSize(cover);
 const price = priceOf(p, defaultVariant(p));
 const isOut = p.stock === "out";
 ---
 <div class="card owned-product">
   <a class="card-thumb" href={href} tabindex="-1" aria-hidden="true">
     <img
-      src={cover.url}
+      src={cover}
       alt=""
-      width={cover.width}
-      height={cover.height}
+      width={coverSize.width}
+      height={coverSize.height}
       loading={eager ? "eager" : "lazy"}
       fetchpriority={eager ? "high" : "auto"}
       decoding={eager ? "sync" : "async"}

@@ -5,6 +5,7 @@
 // track is a native scroll-snap carousel so mobile swipe works with no library,
 // and the thumbnails are real <button>s so the whole thing is keyboard usable.
 import type { ProductData } from "../lib/products";
+import { imageSize, autoAlt } from "../lib/image-size";
 
 interface Props {
   images: ProductData["images"];
@@ -14,11 +15,21 @@ interface Props {
 
 const { images, video, name } = Astro.props;
 const total = images.length;
+
+// The owner uploads files and nothing else. Width, height and alt text used to
+// be four more inputs per photo; they are derived here instead, at build time,
+// so an upload cannot arrive with the wrong dimensions typed beside it.
+const shots = images.map((url, i) => ({
+  url,
+  alt: autoAlt(name, i, total),
+  ...imageSize(url),
+}));
+const first = shots[0];
 ---
 <div class="gallery" data-gallery>
   <div class="gallery-main">
     <ul class="gallery-track" data-gallery-track tabindex="0" aria-label={`${name} — image gallery`}>
-      {images.map((img, i) => (
+      {shots.map((img, i) => (
         <li class="gallery-slide" data-index={i}>
           <button
             type="button"
@@ -26,19 +37,15 @@ const total = images.length;
             data-gallery-zoom={i}
             aria-label={`Enlarge image ${i + 1} of ${total}: ${img.alt}`}
           >
-            <picture>
-              {img.avif && <source srcset={img.avif} type="image/avif" />}
-              {img.webp && <source srcset={img.webp} type="image/webp" />}
-              <img
-                src={img.url}
-                alt={img.alt}
-                width={img.width}
-                height={img.height}
-                loading={i === 0 ? "eager" : "lazy"}
-                fetchpriority={i === 0 ? "high" : "auto"}
-                decoding={i === 0 ? "sync" : "async"}
-              />
-            </picture>
+            <img
+              src={img.url}
+              alt={img.alt}
+              width={img.width}
+              height={img.height}
+              loading={i === 0 ? "eager" : "lazy"}
+              fetchpriority={i === 0 ? "high" : "auto"}
+              decoding={i === 0 ? "sync" : "async"}
+            />
           </button>
         </li>
       ))}
@@ -50,7 +57,7 @@ const total = images.length;
 
   {total > 1 && (
     <ul class="gallery-thumbs" data-gallery-thumbs>
-      {images.map((img, i) => (
+      {shots.map((img, i) => (
         <li>
           <button
             type="button"
@@ -78,7 +85,7 @@ const total = images.length;
 
 <dialog class="lightbox" data-lightbox aria-label={`${name} — enlarged image`}>
   <button type="button" class="lightbox-close" data-lightbox-close aria-label="Close enlarged image">&times;</button>
-  <img data-lightbox-img src={images[0].url} alt={images[0].alt} width={images[0].width} height={images[0].height} />
+  <img data-lightbox-img src={first.url} alt={first.alt} width={first.width} height={first.height} />
 </dialog>
 
 <script is:inline>

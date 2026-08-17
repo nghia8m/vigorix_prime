@@ -130,7 +130,7 @@ collections:
     # The list is the screen this collection is managed from, so it carries the
     # photo, the one-line description and the group — enough to pick the right
     # product without opening three of them to find out which is which.
-    thumbnail: "images.0.url"
+    thumbnail: "images.0"
     summary: "{{fields.name}} — {{fields.subtitle}}"
     sortable_fields: ["order", "name", "price", "category"]
     view_groups:
@@ -144,11 +144,11 @@ collections:
         field: draft
         pattern: false
     fields:
-      - { name: "slug", label: "URL slug (page will be /shop/<slug>)", widget: "string", hint: "Changing this changes the page URL and breaks existing links. Set it once, then leave it alone.", pattern: ['^[a-z0-9]+(-[a-z0-9]+)*$', "Lowercase letters, numbers and hyphens only"] }
       - { name: "name", label: "Product Name (H1)", widget: "string" }
-      - { name: "subtitle", label: "One-line description", widget: "string", required: false, default: "", hint: "Shown on the homepage and /shop cards, and beside the name in this product list. Say what the thing is, not how good it is." }
-      - { name: "metaTitle", label: "Meta Title (SEO, <=70 chars)", widget: "string", pattern: ['^.{1,70}$', "Keep under 70 characters"] }
-      - { name: "metaDescription", label: "Meta Description (SEO, <=165 chars)", widget: "text", pattern: ['^.{1,165}$', "Keep under 165 characters"] }
+      - { name: "subtitle", label: "One-line description", widget: "string", required: false, default: "", hint: "Shown on the homepage and /shop cards, and under the name on the product page. Say what the thing is, not how good it is." }
+      # Meta Title and Meta Description were removed from this form. Search copy
+      # is written on the review articles; a product page derives its title from
+      # the name and its snippet from the one-line description above.
       # Picked from the groups declared in Site settings -> Shop groups, never
       # typed: a typo here would not error, it would quietly create a group of
       # one and put a stray block on the homepage.
@@ -173,52 +173,35 @@ collections:
         required: false
         allow_reorder: true
         field: { name: "badge", label: "Badge", widget: "string" }
-      - name: "variantType"
-        label: "Variant type (also the URL key, e.g. size -> ?size=m). Leave as none if the product has no variants."
-        widget: "select"
-        required: false
-        options: ["size", "color", "pack"]
-      - { name: "variantLegend", label: "Variant question shown to the buyer (e.g. Choose a size)", widget: "string", required: false, default: "" }
-      - name: "variants"
-        label: "Variants (one page with a picker — never a separate page per size)"
-        label_singular: "Variant"
-        widget: "list"
-        required: false
-        allow_reorder: true
-        hint: "Drag to reorder — the first in-stock variant is the one the page opens on. Every id and SKU must be unique; saving is blocked if two match."
-        summary: "{{fields.label}} ({{fields.sku}})"
-        fields:
-          - { name: "id", label: "Internal id (unique, e.g. size-m)", widget: "string" }
-          - { name: "label", label: "Button label (e.g. M)", widget: "string" }
-          - { name: "value", label: "URL value (e.g. m)", widget: "string" }
-          - { name: "priceDelta", label: "Price difference vs the base price (0, or e.g. 4)", widget: "number", value_type: "float", default: 0 }
-          - { name: "sku", label: "SKU", widget: "string", required: false, default: "" }
-          - { name: "stock", label: "Stock", widget: "select", options: ["in", "out", "preorder"], default: "in" }
-          - { name: "imageIndex", label: "Main image to show for this variant (0 = first image)", widget: "number", value_type: "int", default: 0 }
-          - { name: "purchaseUrl", label: "Buy link for THIS variant (optional; falls back to the product buy link)", widget: "string", required: false, default: "" }
+      # Variant type / question / list were removed from this form. One product
+      # sells at one price and the buyer sets the amount with the quantity
+      # stepper, so a size or pack picker had nothing to choose between.
+      #
+      # The FEATURE is still in the code and in the schema: a product carrying
+      # variant data still renders a picker, prices each variant and tracks its
+      # stock. Only the way to enter that data is gone. Put these three fields
+      # back and everything works again — nothing else has to change.
       # A product page cannot ship without at least one image, so the rule is
       # enforced here (blocks Save) as well as in the Zod schema (blocks build).
+      # ONE field, many photos. `multiple: true` on the image widget opens the
+      # file picker with multi-select, so five or seven photographs go up in a
+      # single pass and are stored as a plain list of paths.
+      #
+      # Width, height and alt text used to be typed in beside every photo. They
+      # are not asked for any more: the build reads the real pixel size out of
+      # the file (src/lib/image-size.ts) and writes the alt text from the
+      # product name, which cannot be typed in wrong.
+      #
+      # Uploads land in public/images/shop/ rather than the site-wide
+      # public/images/ folder.
       - name: "images"
-        label: "Images (first one is the main / social image)"
-        widget: "list"
+        label: "Photos — pick several at once; the first one is the main image"
+        widget: "image"
+        multiple: true
         required: true
-        min: 1
-        allow_reorder: true
-        hint: "Drag to reorder — the first image is the main one, the social share image, and the thumbnail in this product list. Keep files under 400 KB."
-        summary: "{{fields.alt}}"
-        fields:
-          # Uploads for this field land in public/images/shop/ rather than the
-          # site-wide public/images/ folder.
-          - name: "url"
-            label: "Image"
-            widget: "image"
-            media_folder: "/public/images/shop"
-            public_folder: "/images/shop"
-          - { name: "alt", label: "Alt text (describe what is actually shown)", widget: "string", required: true, hint: "Required. Describe what is in the photo, not the product name." }
-          - { name: "width", label: "Width in px", widget: "number", value_type: "int", default: 800 }
-          - { name: "height", label: "Height in px", widget: "number", value_type: "int", default: 800 }
-          - { name: "avif", label: "AVIF version (optional)", widget: "string", required: false, default: "" }
-          - { name: "webp", label: "WebP version (optional)", widget: "string", required: false, default: "" }
+        media_folder: "/public/images/shop"
+        public_folder: "/images/shop"
+        hint: "Select 5–7 photos in one go (hold Ctrl or Shift in the file picker). Drag to reorder — the first is the main photo, the social share image and the thumbnail in this list. Any shape is fine; the page crops to a portrait frame. Keep each file under 400 KB."
       - name: "video"
         label: "Video (optional)"
         widget: "object"
@@ -226,15 +209,11 @@ collections:
         fields:
           - { name: "url", label: "Video file URL", widget: "string" }
           - { name: "poster", label: "Poster image", widget: "image", required: false, default: "" }
-      - name: "specs"
-        label: "Specifications table"
-        widget: "list"
-        required: false
-        allow_reorder: true
-        summary: "{{fields.label}}: {{fields.value}}"
-        fields:
-          - { name: "label", label: "Label", widget: "string" }
-          - { name: "value", label: "Value (write TODO rather than guessing a figure)", widget: "string" }
+      # The Specifications table is gone. The left-hand column of a product page
+      # is two blocks now — photos, then one description — so a separate table of
+      # label/value pairs had nowhere to render and only made this form longer.
+      # Anything that belonged in it goes in the description, where the author
+      # can lay it out as a real table (see the description hint below).
       - name: "trust"
         label: "Trust boxes (up to 4 shown)"
         widget: "list"
@@ -245,16 +224,16 @@ collections:
           - { name: "icon", label: "Icon", widget: "select", options: ["shield", "truck", "refresh", "support", "leaf", "lock"], default: "shield" }
           - { name: "title", label: "Title", widget: "string" }
           - { name: "sub", label: "Sub-text", widget: "string", required: false, default: "" }
-      - name: "shipTo"
-        label: "Ships to (display only)"
-        widget: "list"
-        required: false
-        allow_reorder: true
-        field: { name: "place", label: "Country / region", widget: "string" }
-      - { name: "stock", label: "Stock (used when there are no variants)", widget: "select", options: ["in", "out", "preorder"], default: "in" }
-      - { name: "purchaseUrl", label: "Buy link (external checkout URL; empty = button disabled)", widget: "string", required: false, default: "", hint: "Phase 1: paste the external checkout URL. Leave empty and the buy button ships disabled — that is allowed, you will just get a reminder when saving." }
-      - { name: "quantityParam", label: "Quantity query parameter the checkout accepts (e.g. qty). LEAVE EMPTY and the quantity box is hidden instead of doing nothing.", widget: "string", required: false, default: "", hint: "Only fill this in if the checkout page actually reads the parameter. Empty = the quantity box is hidden rather than shown doing nothing." }
-      - { name: "variantParam", label: "Variant query parameter the checkout accepts (optional)", widget: "string", required: false, default: "" }
+      # "Ships to" was removed. It printed one decorative line in the buy panel
+      # and nothing else — it never restricted an address, never priced a
+      # country and never stopped an order — and it was left empty on every
+      # product. Where a product really does ship belongs in a Trust box or in
+      # the description, next to the claim it supports.
+      - { name: "stock", label: "Stock", widget: "select", options: ["in", "out", "preorder"], default: "in", hint: "Out of stock disables the buy button and the checkout refuses the line, so it cannot be bought by an old link either." }
+      # Buy link, Quantity query parameter and Variant query parameter were
+      # removed. All three existed to hand the shopper over to somebody else's
+      # checkout page — the shop takes the payment itself now, so every one of
+      # them was left empty on every product and only made this form longer.
       - name: "relatedArticles"
         label: "Related review guides (article filename without .md) — links both ways, outside the rankings"
         widget: "list"
@@ -262,8 +241,48 @@ collections:
         allow_reorder: true
         field: { name: "id", label: "Article id", widget: "string" }
       - { name: "order", label: "Order (lower = shown earlier)", widget: "number", value_type: "int", default: 99 }
-      - { name: "draft", label: "Draft — blocks the production build", widget: "boolean", default: true, hint: "ON = this product is a placeholder. While ANY product has Draft ON, `npm run build` FAILS on purpose and the site cannot deploy. Switch it OFF only when every field holds real data — no TODO left, real photos, real price." }
-      - { name: "body", label: "Long description (headings, paragraphs, images, FAQ)", widget: "markdown", hint: "This becomes the page body. Avoid treatment claims (cure / treat / heal / relief) and never publish a made-up figure." }
+      # Moved down here out of the way. It cannot be deleted: this is the page
+      # address AND the key the checkout uses to look up a price on the server,
+      # so a product without one cannot be bought. Set it once when the product
+      # is created, then never touch it again.
+      - { name: "slug", label: "URL slug — set once, then leave alone (page will be /shop/<slug>)", widget: "string", hint: "Changing this changes the page URL, breaks existing links, and orphans anything already in a customer's cart.", pattern: ['^[a-z0-9]+(-[a-z0-9]+)*$', "Lowercase letters, numbers and hyphens only"] }
+      # HONEST LABEL. This used to promise it blocked the production build. It
+      # does not: Cloudflare builds with `npm run build:preview`, which sets
+      # ALLOW_DRAFT_PRODUCTS=1 and turns the guard into a log line nobody reads.
+      # `npm run build` on a developer's machine still blocks. Until the two
+      # flags are separated, a product left ON here ships live and sellable.
+      - { name: "draft", label: "Draft — work in progress", widget: "boolean", default: true, hint: "A note to yourself that this product is not finished. WARNING: it does NOT hide the product from the live site — a product left ON here still gets a page and can still be bought. Switch it OFF once every field holds real data: no TODO left, real photos, real price." }
+      # The description block. Every formatting button the editor has is turned
+      # on, and the "raw" mode is added beside the rich-text one.
+      #
+      # Raw mode is not a developer escape hatch here, it is the only route to
+      # two things the toolbar has no button for: TEXT COLOUR and TABLES. Both
+      # are written as ordinary HTML in raw mode and render as-is on the page.
+      # Ready-made snippets to paste are in the hint below.
+      - name: "body"
+        label: "Description — the one long block under the photos"
+        widget: "markdown"
+        modes: ["rich_text", "raw"]
+        buttons:
+          - bold
+          - italic
+          - strikethrough
+          - code
+          - link
+          - heading-two
+          - heading-three
+          - heading-four
+          - bulleted-list
+          - numbered-list
+          - quote
+        editor_components: ["image", "code-block"]
+        hint: >-
+          Write it like a document: headings, bold, lists, quotes and photos from the toolbar.
+          For COLOURED TEXT or a TABLE, switch the editor to "raw" and paste HTML —
+          colour: <span style="color:#c25100">text in orange</span> ·
+          table: <table><thead><tr><th>Item</th><th>Detail</th></tr></thead><tbody><tr><td>Size</td><td>250 ml</td></tr></tbody></table>.
+          Tables get borders and scroll sideways on a phone automatically.
+          Avoid treatment claims (cure / treat / heal / relief) and never publish a made-up figure.
 
   # -------------------------------------------------------------------------
   # SITE SETTINGS — header, footer, and site-wide verification/analytics code

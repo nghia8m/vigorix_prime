@@ -26,6 +26,14 @@ const SITE_URL = "https://vigorixprime.com";
 const path = productPath(p);
 const canonical = new URL(path, SITE_URL).href;
 
+// The two SEO boxes were taken off the product form: search copy is written on
+// the review articles, not here. Anything not filled in falls back to what the
+// owner already typed for the customer. Truncated to the lengths Google will
+// actually show, so a long subtitle cannot produce a clipped snippet.
+const clamp = (s: string, max: number) => (s.length <= max ? s : `${s.slice(0, max - 1).trimEnd()}…`);
+const metaTitle = p.metaTitle || clamp(`${p.name} | Vigorix Prime Shop`, 70);
+const metaDescription = p.metaDescription || clamp(p.subtitle || p.name, 165);
+
 // Long description: authored in the MDX body, rendered to static HTML at build
 // time. It must stay in the source HTML — never moved to client-side rendering.
 const { Content } = await render(product);
@@ -57,8 +65,8 @@ const productSchema = {
   "@context": "https://schema.org",
   "@type": "Product",
   name: p.name,
-  description: p.metaDescription,
-  image: p.images.map((img) => new URL(img.url, SITE_URL).href),
+  description: metaDescription,
+  image: p.images.map((url) => new URL(url, SITE_URL).href),
   ...(p.sku ? { sku: p.sku } : {}),
   brand: { "@type": "Brand", name: "Vigorix Prime" },
   category: p.categoryLabel,
@@ -88,11 +96,11 @@ const variant = defaultVariant(p);
 const heroImage = p.images[variant?.imageIndex ?? 0] ?? p.images[0];
 ---
 <BaseLayout
-  title={p.metaTitle}
-  description={p.metaDescription}
+  title={metaTitle}
+  description={metaDescription}
   path={path}
   ogType="product"
-  ogImage={heroImage.url}
+  ogImage={heroImage}
   jsonLd={[breadcrumb, productSchema]}
   bodyClass="has-buybar"
   noindex={shopIsTesting()}
@@ -123,24 +131,9 @@ const heroImage = p.images[variant?.imageIndex ?? 0] ?? p.images[0];
         </aside>
 
         <div class="pd-details">
-          {p.specs.length > 0 && (
-            <section class="pd-section" id="specs">
-              <h2>Specifications</h2>
-              <div class="table-wrap">
-                <table class="compare pd-specs">
-                  <tbody>
-                    {p.specs.map((s) => (
-                      <tr>
-                        <th scope="row">{s.label}</th>
-                        <td>{s.value || "TODO"}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </section>
-          )}
-
+          {/* One block, not three. The Specifications table that used to sit
+              here was removed at the owner's request: a table belongs inside the
+              description now, written where the rest of the copy is written. */}
           <section class="pd-section pd-prose" id="description">
             <Content />
           </section>

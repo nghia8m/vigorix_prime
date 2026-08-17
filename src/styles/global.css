@@ -829,6 +829,48 @@ table.compare td:first-child { font-weight: 700; color: var(--navy); }
 .pd-prose p { margin-bottom: 14px; }
 .pd-prose ul, .pd-prose ol { margin: 0 0 18px 22px; }
 .pd-prose li { margin-bottom: 6px; }
+.pd-prose strong { color: var(--navy-dark); }
+.pd-prose blockquote {
+  margin: 18px 0;
+  padding: 2px 0 2px 16px;
+  border-left: 4px solid var(--orange);
+  color: var(--gray-700);
+}
+
+/* Tables written into the description. There is no table button in the editor —
+   they arrive either as markdown pipes or as pasted HTML, and in neither case
+   can the author wrap them in a scroll container. So the table carries its own:
+   display:block lets overflow-x apply to the element itself, which is the only
+   way a wide table can scroll rather than push the whole page sideways on a
+   phone. width:max-content stops that same display:block from collapsing a
+   narrow table to its shrink-wrapped width. */
+.pd-prose table {
+  display: block;
+  overflow-x: auto;
+  max-width: 100%;
+  width: max-content;
+  min-width: min(100%, 100%);
+  border-collapse: collapse;
+  margin: 20px 0;
+  font-size: 0.95rem;
+}
+.pd-prose th,
+.pd-prose td {
+  border: 1px solid var(--gray-200);
+  padding: 9px 12px;
+  text-align: left;
+  vertical-align: top;
+}
+.pd-prose thead th {
+  background: var(--gray-50);
+  color: var(--navy-dark);
+  font-weight: 700;
+}
+.pd-prose tbody tr:nth-child(even) { background: var(--gray-50); }
+
+/* Any image in the description, however it was inserted: the editor's image
+   button emits a bare <img>, so this cannot depend on a class being typed. */
+.pd-prose img,
 .pd-inline-img {
   border-radius: var(--radius);
   border: 1px solid var(--gray-200);
@@ -858,6 +900,12 @@ table.compare td:first-child { font-weight: 700; color: var(--navy); }
   display: flex;
   flex-direction: column;
   gap: 10px;
+  /* Seven photos would otherwise run the rail past the bottom of the picture it
+     belongs to. Five fit; the rest scroll. calc() keeps this honest if the
+     thumbnail size below is ever changed. */
+  max-height: calc(84px * 5 + 10px * 4);
+  overflow-y: auto;
+  scrollbar-width: thin;
 }
 .gallery-track {
   list-style: none;
@@ -883,7 +931,11 @@ table.compare td:first-child { font-weight: 700; color: var(--navy); }
 .gallery-zoom img {
   width: 100%;
   height: auto;
-  aspect-ratio: 1 / 1;
+  /* A fixed portrait frame, filled by object-fit rather than by the file. Every
+     photo therefore reserves the same space whatever shape it was uploaded in,
+     so the page cannot jump between slides, and an odd ratio is letterboxed
+     against the panel rather than cropping the product out of frame. */
+  aspect-ratio: 4 / 5;
   object-fit: contain;
 }
 .gallery-zoom:focus-visible { outline: 3px solid var(--navy-light); outline-offset: -3px; }
@@ -1135,6 +1187,7 @@ table.compare td:first-child { font-weight: 700; color: var(--navy); }
   .price-now { font-size: 1.6rem; }
   .gallery { grid-template-columns: 68px 1fr; }
   .gallery-thumb { width: 68px; height: 68px; }
+  .gallery-thumbs { max-height: calc(68px * 5 + 10px * 4); }
 }
 
 /* Mobile: one column, thumbnails run horizontally, purchase collapses to a
@@ -1155,6 +1208,8 @@ table.compare td:first-child { font-weight: 700; color: var(--navy); }
     grid-row: auto;
     flex-direction: row;
     overflow-x: auto;
+    overflow-y: visible;
+    max-height: none; /* the rail is horizontal here — the desktop cap must not apply */
     padding-bottom: 4px;
   }
   .gallery-thumb { width: 64px; height: 64px; flex: 0 0 auto; }

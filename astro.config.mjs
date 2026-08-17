@@ -3,6 +3,7 @@ import { defineConfig } from "astro/config";
 import mdx from "@astrojs/mdx";
 import cloudflare from "@astrojs/cloudflare";
 import { draftGuard } from "./scripts/draft-guard.mjs";
+import { slugGuard } from "./scripts/slug-guard.mjs";
 import { cloudflareRoutes } from "./scripts/cf-routes.mjs";
 
 // STILL A STATIC SITE. The adapter is here only so individual API routes can
@@ -23,7 +24,10 @@ export default defineConfig({
   // mdx        -> long-form product descriptions live in the body of
   //               src/content/products/*.mdx (rendered to static HTML).
   // draftGuard -> aborts a production build while any product is draft: true.
-  integrations: [mdx(), draftGuard(), cloudflareRoutes()],
+  // slugGuard  -> aborts ANY build when two products claim the same /shop URL,
+  //               which the content loader would otherwise resolve by silently
+  //               dropping one of them.
+  integrations: [mdx(), slugGuard(), draftGuard(), cloudflareRoutes()],
 
   vite: {
     server: {

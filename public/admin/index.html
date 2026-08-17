@@ -16,8 +16,7 @@
          Shop Products — save-time validation
          ---------------------------------------------------------------------
          config.yml already blocks the rules it can express on its own:
-           • images[] empty        -> required: true + min: 1
-           • an image missing alt  -> required: true on the alt subfield
+           • images[] empty        -> required: true on the images field
          The rules below need to compare items against EACH OTHER, or look at a
          file on disk, which the config language cannot do. They run on save so
          the editor finds out here, not three minutes later in a failed build.
@@ -75,12 +74,15 @@
         /** Size check, run after the save so the files actually exist on disk. */
         function oversizedImages(data) {
           var warnings = [], unknown = 0;
-          (data.images || []).forEach(function (img, i) {
-            if (!img || !img.url) return;
-            var bytes = fileSize(img.url);
+          // Each entry is now the image path itself. It used to be an object
+          // carrying url/alt/width/height; those last three are derived at build
+          // time, so the field holds a plain list of paths.
+          (data.images || []).forEach(function (url, i) {
+            if (!url || typeof url !== "string") return;
+            var bytes = fileSize(url);
             if (bytes === null) { unknown++; return; }
             if (bytes > MAX_IMAGE_BYTES)
-              warnings.push("Image " + (i + 1) + " (" + img.url + ") is " +
+              warnings.push("Image " + (i + 1) + " (" + url + ") is " +
                             Math.round(bytes / 1024) + " KB — over the 400 KB guideline. " +
                             "Re-export it smaller before this product goes live.");
           });
@@ -147,12 +149,11 @@
                           ", but this product only has " + images.length + " image(s).");
           });
 
-          if (!data.purchaseUrl) {
-            var variantHasUrl = variants.some(function (v) { return v && v.purchaseUrl; });
-            if (!variantHasUrl)
-              warnings.push("No buy link is set, so the buy button will ship disabled. " +
-                            "That is allowed in phase 1 — just be aware the product cannot be bought yet.");
-          }
+          // The "no buy link is set" warning was removed with the field it
+          // watched. It belonged to phase 1, when a product handed the shopper
+          // to an external checkout; the shop takes the payment itself now, so
+          // an empty buy link is the normal state and warning about it on every
+          // single save trained the editor to dismiss the dialog unread.
 
           return { errors: errors, warnings: warnings };
         }

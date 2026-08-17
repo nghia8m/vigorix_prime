@@ -79,8 +79,12 @@ const products = defineCollection({
     slug: z.string(),
     name: z.string(),
     subtitle: z.string().default(""), // one-line description used on cards
-    metaTitle: z.string().max(70),
-    metaDescription: z.string().max(165),
+    // Search-engine copy is no longer asked for on a product. Left blank it is
+    // derived from the name and the one-line description, which is what the
+    // owner would have typed anyway. Still accepted so a product that wants a
+    // hand-written title can carry one.
+    metaTitle: z.string().max(70).default(""),
+    metaDescription: z.string().max(165).default(""),
     category: z.string().default("health-care"),
     categoryLabel: z.string().default("Health Care"),
 
@@ -95,7 +99,14 @@ const products = defineCollection({
 
     // Variants. One page per item, never one page per size/colour — near-identical
     // pages compete with each other in search and Google keeps only one.
-    variantType: z.enum(["size", "color", "pack"]).nullable().default(null),
+    // "" is what the CMS writes when the editor clears this optional select.
+    // The enum alone rejected it and failed the whole build over a field every
+    // consumer already treats as "no variants", so empty is accepted and
+    // normalised to null right here rather than guarded at each use.
+    variantType: z
+      .union([z.enum(["size", "color", "pack"]), z.literal(""), z.null()])
+      .default(null)
+      .transform((v) => v || null),
     variantLegend: z.string().default(""), // <legend> text, e.g. "Choose a size"
     variants: z
       .array(
@@ -114,18 +125,28 @@ const products = defineCollection({
       )
       .default([]),
 
+    /**
+     * Just the paths, in display order, first one is the cover.
+     *
+     * This used to be a list of objects carrying alt text and pixel dimensions
+     * as well, which meant four inputs per photograph and no way to upload a
+     * set in one go. Dimensions are now read from the files at build time (see
+     * src/lib/image-size.ts) and alt text is generated from the product name,
+     * so the admin needs one field and one file-picker.
+     *
+     * The cost is honest: no per-image alt text. For supplier photography that
+     * is a fair trade; if a picture ever needs describing properly, add an
+     * optional caption field rather than putting all four inputs back.
+     *
+     * Objects from the old shape are still accepted and unwrapped, so a
+     * half-migrated file cannot break the build.
+     */
     images: z
       .array(
-        z.object({
-          url: z.string(),
-          alt: z.string(),
-          width: z.number(),
-          height: z.number(),
-          // Optional modern formats; when present they are emitted as <source>
-          // elements ahead of the `url` fallback.
-          avif: z.string().default(""),
-          webp: z.string().default(""),
-        })
+        z.union([
+          z.string(),
+          z.object({ url: z.string() }).transform((o) => o.url),
+        ])
       )
       .min(1),
     video: z.object({ url: z.string(), poster: z.string().default("") }).nullable().default(null),

@@ -53,8 +53,8 @@ export const GET: APIRoute = async () => {
             currency: d.currency,
             stock: d.stock,
             variantType: d.variantType,
-            image: cover?.url ?? "",
-            imageAlt: cover?.alt ?? "",
+            image: cover ?? "",
+            imageAlt: d.name,
             variants: d.variants.map((v) => ({
               id: v.id,
               label: v.label,
@@ -62,7 +62,7 @@ export const GET: APIRoute = async () => {
               priceDeltaCents: cents(v.priceDelta),
               sku: v.sku,
               stock: v.stock,
-              image: d.images[v.imageIndex]?.url ?? cover?.url ?? "",
+              image: d.images[v.imageIndex] ?? cover ?? "",
             })),
           },
         ];

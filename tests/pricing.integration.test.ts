@@ -56,6 +56,26 @@ describe("real catalogue", { skip: built ? false : "no build found — run `npm 
     },
   });
 
+  /* The line the shop itself would send for a product: its first sellable
+     variant, or no variant at all when the product has none.
+
+     Written out as "size-l" and "pack-8" this file failed the day the owner
+     removed the pack sizes from the admin — four red tests about arithmetic
+     that had not changed. Variants are a merchandising decision, so the tests
+     read that decision out of the catalogue instead of restating it. */
+  const lineFor = (slug: string, qty: number) => {
+    const p = catalogue[slug];
+    const v = p.variants.find((x) => x.stock !== "out") ?? p.variants[0];
+    return { productSlug: slug, variantId: v?.id ?? "", qty };
+  };
+
+  /** Base price plus the delta of whatever variant that line would carry. */
+  const unitFor = (slug: string) => {
+    const p = catalogue[slug];
+    const v = p.variants.find((x) => x.stock !== "out") ?? p.variants[0];
+    return p.priceCents + (v?.priceDeltaCents ?? 0);
+  };
+
   test("the sample products are all priced in whole cents", () => {
     for (const p of Object.values(catalogue)) {
       assert.ok(Number.isInteger(p.priceCents), `${p.slug} price is not an integer`);
@@ -67,10 +87,7 @@ describe("real catalogue", { skip: built ? false : "no build found — run `npm 
 
   test("a real mixed order totals correctly", () => {
     const r = priceOrder(ctx(), {
-      items: [
-        { productSlug: "knee-support-brace", variantId: "size-l", qty: 3 },
-        { productSlug: "herbal-warming-patch", variantId: "pack-8", qty: 3 },
-      ],
+      items: [lineFor("knee-support-brace", 3), lineFor("herbal-warming-patch", 3)],
     });
     assert.equal(r.ok, true, JSON.stringify(r));
     if (!r.ok) return;
@@ -81,13 +98,8 @@ describe("real catalogue", { skip: built ? false : "no build found — run `npm 
        nothing about the arithmetic. What the code owes is that a unit is the
        base plus its variant delta, a line is the unit times the quantity, and
        the subtotal is the sum. Those hold at any price. */
-    const expectUnit = (slug: string, variantId: string) => {
-      const p = catalogue[slug];
-      const v = p.variants.find((x) => x.id === variantId)!;
-      return p.priceCents + v.priceDeltaCents;
-    };
-    const braceUnit = expectUnit("knee-support-brace", "size-l");
-    const patchUnit = expectUnit("herbal-warming-patch", "pack-8");
+    const braceUnit = unitFor("knee-support-brace");
+    const patchUnit = unitFor("herbal-warming-patch");
 
     assert.equal(r.lines[0].unitPriceCents, braceUnit);
     assert.equal(r.lines[0].lineTotalCents, braceUnit * 3);
@@ -95,13 +107,22 @@ describe("real catalogue", { skip: built ? false : "no build found — run `npm 
     assert.equal(r.totalQty, 6);
   });
 
-  test("the out-of-stock variant in the real data is refused", () => {
-    const r = priceOrder(ctx(), {
-      items: [{ productSlug: "herbal-warming-patch", variantId: "pack-24", qty: 1 }],
-    });
-    assert.equal(r.ok, false);
-    if (r.ok) return;
-    assert.equal(r.code, "out_of_stock");
+  test("whatever the real data marks out of stock is refused", (t) => {
+    // Out of stock is a state the owner sets, on a variant or on the product
+    // itself. Find one; say so plainly if today's catalogue has none, rather
+    // than failing over a product that came back into stock.
+    for (const p of Object.values(catalogue)) {
+      const dead = p.variants.find((v) => v.stock === "out");
+      if (!dead && p.stock !== "out") continue;
+
+      const r = priceOrder(ctx(), {
+        items: [{ productSlug: p.slug, variantId: dead?.id ?? "", qty: 1 }],
+      });
+      assert.equal(r.ok, false, `${p.slug} is out of stock but was accepted`);
+      if (!r.ok) assert.equal(r.code, "out_of_stock");
+      return;
+    }
+    t.skip("nothing in the real catalogue is out of stock — covered by the unit tests");
   });
 
   // Overrides the switch rather than reading it. Whether postage is currently
@@ -110,7 +131,7 @@ describe("real catalogue", { skip: built ? false : "no build found — run `npm 
   // setting as intended, which is not a defect worth reporting.
   test("switched off, real orders ship FREE", () => {
     const r = priceOrder(ctx({ enabled: false }), {
-      items: [{ productSlug: "knee-support-brace", variantId: "size-s", qty: 3 }],
+      items: [lineFor("knee-support-brace", 3)],
     });
     assert.equal(r.ok, true);
     if (!r.ok) return;
@@ -125,13 +146,13 @@ describe("real catalogue", { skip: built ? false : "no build found — run `npm 
     const per = raw.shipping.perBlockCents;
 
     const one = priceOrder(on, {
-      items: [{ productSlug: "knee-support-brace", variantId: "size-s", qty: pack }],
+      items: [lineFor("knee-support-brace", pack)],
     });
     assert.equal(one.ok, true);
     if (one.ok) assert.equal(one.shippingCents, per);
 
     const two = priceOrder(on, {
-      items: [{ productSlug: "knee-support-brace", variantId: "size-s", qty: pack * 2 }],
+      items: [lineFor("knee-support-brace", pack * 2)],
     });
     assert.equal(two.ok, true);
     if (two.ok) assert.equal(two.shippingCents, per * 2);

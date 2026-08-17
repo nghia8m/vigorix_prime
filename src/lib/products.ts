@@ -18,17 +18,16 @@ const showDrafts =
 export async function getShopProducts(): Promise<Product[]> {
   const products = await getCollection("products", ({ data }) => showDrafts || !data.draft);
 
-  const seen = new Map<string, string>();
-  for (const p of products) {
-    const clash = seen.get(p.data.slug);
-    if (clash) {
-      throw new Error(
-        `Duplicate product slug "${p.data.slug}" in ${clash} and ${p.id}. ` +
-          `Each product needs its own /shop/<slug> URL.`
-      );
-    }
-    seen.set(p.data.slug, p.id);
-  }
+  // There used to be a duplicate-slug check here. It could never fire, and
+  // measuring it was the only way to find that out: Astro's glob loader takes
+  // an entry's id from the `slug` frontmatter field, and the content store is
+  // keyed by id, so two files with the same slug arrive here already merged
+  // into one. The loop saw six products where seven files existed and reported
+  // everything as fine while a real product had been overwritten.
+  //
+  // The check now runs on the files, before the loader collapses them:
+  // scripts/slug-guard.mjs, wired into astro.config.mjs. Do not reinstate a
+  // version of it in this function — it reads as protection and is not.
 
   return products.sort((a, b) => a.data.order - b.data.order || a.data.name.localeCompare(b.data.name));
 }
