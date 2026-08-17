@@ -1,6 +1,6 @@
 {
   "shipping": {
-    "enabled": false,
+    "enabled": true,
     "perBlockCents": 2500,
     "currency": "USD"
   },
