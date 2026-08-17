@@ -74,10 +74,24 @@ describe("real catalogue", { skip: built ? false : "no build found — run `npm 
     });
     assert.equal(r.ok, true, JSON.stringify(r));
     if (!r.ok) return;
-    // 2900 + 400 = 3300 each, plus 1900 patch packs. Quantities are whole packs
-    // because the real settings enforce them.
-    assert.equal(r.lines[0].unitPriceCents, 3300);
-    assert.equal(r.subtotalCents, 3300 * 3 + 1900 * 3);
+
+    /* Expectations are DERIVED from the catalogue, not written in. Prices are
+       the owner's to change from the admin — one was dropped to $1 for a live
+       test — and a test that hard-codes 2900 fails on that edit while proving
+       nothing about the arithmetic. What the code owes is that a unit is the
+       base plus its variant delta, a line is the unit times the quantity, and
+       the subtotal is the sum. Those hold at any price. */
+    const expectUnit = (slug: string, variantId: string) => {
+      const p = catalogue[slug];
+      const v = p.variants.find((x) => x.id === variantId)!;
+      return p.priceCents + v.priceDeltaCents;
+    };
+    const braceUnit = expectUnit("knee-support-brace", "size-l");
+    const patchUnit = expectUnit("herbal-warming-patch", "pack-8");
+
+    assert.equal(r.lines[0].unitPriceCents, braceUnit);
+    assert.equal(r.lines[0].lineTotalCents, braceUnit * 3);
+    assert.equal(r.subtotalCents, braceUnit * 3 + patchUnit * 3);
     assert.equal(r.totalQty, 6);
   });
 

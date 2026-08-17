@@ -103,10 +103,11 @@ const heroImage = p.images[variant?.imageIndex ?? 0] ?? p.images[0];
         <a href="/">Home</a> &rsaquo; <a href="/shop">Shop</a> &rsaquo; <span>{p.name}</span>
       </nav>
 
-      <p class="shop-notice shop-notice--compact">
-        <strong>This is a product we sell ourselves.</strong> It is not part of our
-        independent review process and never appears in our rankings or best-picks guides.
-      </p>
+      {/* The banner that said "this is a product we sell ourselves" was removed
+          at the owner's request. The disclosure itself is not gone: the "Our
+          product" tag still sits at the top of the buy panel, which is what
+          /affiliate-disclosure promises appears on every own-brand product, and
+          the /shop page still carries the full notice. */}
 
       <!-- Two columns in ONE grid container so the sticky buy panel stops at the
            end of the left-hand content instead of running into the footer.
